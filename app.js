@@ -7,6 +7,7 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 const info = document.getElementById('info');
 const searchInput = document.getElementById('search');
 const geoBtn = document.getElementById('geo');
+const satTable = document.getElementById('sat-table');
 
 const satellites = [
   { name: 'MUOS-1', lon: -100 },
@@ -35,7 +36,7 @@ function updateLocation(lat, lon, height = 0) {
   lines.length = 0;
   labels.length = 0;
 
-  let html = '';
+  let html = '<table><tr><th>Satellite</th><th>Az</th><th>El</th><th>Status</th></tr>';
   satellites.forEach((sat, i) => {
     const positionEcf = satellite.geodeticToEcf({
       longitude: satellite.degreesToRadians(sat.lon),
@@ -50,7 +51,7 @@ function updateLocation(lat, lon, height = 0) {
     const status = el > 10 ? 'Good' : 'Bad';
     const color = el > 10 ? 'green' : 'red';
 
-    html += `${sat.name}: Az ${az.toFixed(1)}° El ${el.toFixed(1)}° (${status})<br>`;
+    html += `<tr style="color:${color}"><td>${sat.name}</td><td>${az.toFixed(1)}°</td><td>${el.toFixed(1)}°</td><td>${status}</td></tr>`;
 
     if (el > 0) {
       const line = L.polyline([[lat, lon], [0, sat.lon]], {
@@ -60,8 +61,7 @@ function updateLocation(lat, lon, height = 0) {
       }).addTo(map);
       lines.push(line);
 
-      // Anchor label ~5-10% along line (close to user, follows direction)
-      const frac = 0.08 + i * 0.02; // slight stagger per satellite
+      const frac = 0.08 + i * 0.02;
       const labelLat = lat + frac * (0 - lat);
       const labelLon = lon + frac * (sat.lon - lon);
       const label = L.tooltip([labelLat, labelLon], {
@@ -74,8 +74,9 @@ function updateLocation(lat, lon, height = 0) {
       labels.push(label);
     }
   });
-
-  info.innerHTML = html;
+  html += '</table>';
+  satTable.innerHTML = html;
+  info.innerHTML = ''; // optional: move table info here if preferred
 }
 
 // Initial load
