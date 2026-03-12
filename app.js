@@ -24,9 +24,9 @@ function updateLocation(lat, lon, height = 0) {
   map.setView([lat, lon], 10);
 
   const observer = {
-    latitude: satellite.degreesToRadians(lat),
     longitude: satellite.degreesToRadians(lon),
-    height
+    latitude: satellite.degreesToRadians(lat),
+    height: height
   };
 
   lines.forEach(line => map.removeLayer(line));
@@ -34,10 +34,13 @@ function updateLocation(lat, lon, height = 0) {
 
   let html = '';
   satellites.forEach(sat => {
-    const posGd = { latitude: 0, longitude: sat.lon, height: 35786 };
+    const position = {
+      longitude: satellite.degreesToRadians(sat.lon),
+      latitude: 0,
+      height: 35786
+    };
 
-    const topocentric = satellite.topocentric(observer, posGd);
-    const lookAngles = satellite.topocentricToLookAngles(topocentric);
+    const lookAngles = satellite.lookAngles(observer, position);
     const az = lookAngles.azimuth * 180 / Math.PI;
     const el = lookAngles.elevation * 180 / Math.PI;
     const status = el > 10 ? 'Good' : 'Bad';
