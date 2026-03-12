@@ -31,12 +31,12 @@ function updateLocation(lat, lon, height = 0) {
   };
 
   lines.forEach(l => map.removeLayer(l));
-  labels.forEach(obj => map.removeLayer(obj.label));
+  labels.forEach(l => map.removeLayer(l));
   lines.length = 0;
   labels.length = 0;
 
   let html = '';
-  satellites.forEach(sat => {
+  satellites.forEach((sat, i) => {
     const positionEcf = satellite.geodeticToEcf({
       longitude: satellite.degreesToRadians(sat.lon),
       latitude: 0,
@@ -60,22 +60,27 @@ function updateLocation(lat, lon, height = 0) {
       }).addTo(map);
       lines.push(line);
 
-      // Fixed pixel offset from user marker (always visible near user)
-      const label = L.tooltip([lat, lon], {
+      // Anchor label ~5-10% along line (close to user, follows direction)
+      const frac = 0.08 + i * 0.02; // slight stagger per satellite
+      const labelLat = lat + frac * (0 - lat);
+      const labelLon = lon + frac * (sat.lon - lon);
+      const label = L.tooltip([labelLat, labelLon], {
         permanent: true,
-        direction: 'top',
+        direction: 'center',
         className: 'line-label',
-        offset: [0, -30],
+        offset: [0, -12],
         pane: 'tooltipPane'
       }).setContent(sat.name).addTo(map);
-      labels.push({label, sat});
+      labels.push(label);
     }
   });
 
   info.innerHTML = html;
 }
 
-// No need for zoom adjustment anymore
+// Initial load
+updateLocation(39.0, -104.0, 2.3);
+
 map.on('click', e => updateLocation(e.latlng.lat, e.latlng.lng));
 
 geoBtn.addEventListener('click', () => {
