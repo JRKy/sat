@@ -23,26 +23,28 @@ function updateLocation(lat, lon, height = 0) {
   userMarker.setLatLng([lat, lon]);
   map.setView([lat, lon], 10);
 
-  const observer = {
+  const observerGd = {
     longitude: satellite.degreesToRadians(lon),
     latitude: satellite.degreesToRadians(lat),
     height: height
   };
+
+  const gmst = satellite.gstime(new Date());
 
   lines.forEach(line => map.removeLayer(line));
   lines.length = 0;
 
   let html = '';
   satellites.forEach(sat => {
-    const position = {
+    // Fixed GEO: ECI ≈ ECF for equatorial at that longitude, but use proper transform
+    // For simplicity, approximate ECF lon = sat.lon, lat=0, height=35786 km
+    const positionEcf = satellite.geodeticToEcf({
       longitude: satellite.degreesToRadians(sat.lon),
       latitude: 0,
       height: 35786
-    };
+    });
 
-    const lookAngles = satellite.topocentricToLookAngles(
-      satellite.topocentric(observer, position)
-    );
+    const lookAngles = satellite.ecfToLookAngles(observerGd, positionEcf);
 
     const az = lookAngles.azimuth * 180 / Math.PI;
     const el = lookAngles.elevation * 180 / Math.PI;
