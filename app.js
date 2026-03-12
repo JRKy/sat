@@ -60,14 +60,12 @@ function updateLocation(lat, lon, height = 0) {
       }).addTo(map);
       lines.push(line);
 
-      const frac = 0.1; // Initial frac
-      const labelLat = lat + frac * (0 - lat);
-      const labelLon = lon + frac * (sat.lon - lon);
-      const label = L.tooltip([labelLat, labelLon], {
+      // Fixed pixel offset from user marker (always visible near user)
+      const label = L.tooltip([lat, lon], {
         permanent: true,
-        direction: 'center',
+        direction: 'top',
         className: 'line-label',
-        offset: [0, -15],
+        offset: [0, -30],
         pane: 'tooltipPane'
       }).setContent(sat.name).addTo(map);
       labels.push({label, sat});
@@ -75,28 +73,9 @@ function updateLocation(lat, lon, height = 0) {
   });
 
   info.innerHTML = html;
-  adjustLabels();
 }
 
-// Adjust labels on zoom
-function adjustLabels() {
-  const zoom = map.getZoom();
-  const frac = zoom > 12 ? 0.05 : zoom > 10 ? 0.1 : zoom > 8 ? 0.2 : 0.3;
-
-  const userLatLng = userMarker.getLatLng();
-  labels.forEach(obj => {
-    const {label, sat} = obj;
-    const labelLat = userLatLng.lat + frac * (0 - userLatLng.lat);
-    const labelLon = userLatLng.lng + frac * (sat.lon - userLatLng.lng);
-    label.setLatLng([labelLat, labelLon]);
-  });
-}
-
-map.on('zoomend', adjustLabels);
-
-// Initial load
-updateLocation(39.0, -104.0, 2.3);
-
+// No need for zoom adjustment anymore
 map.on('click', e => updateLocation(e.latlng.lat, e.latlng.lng));
 
 geoBtn.addEventListener('click', () => {
