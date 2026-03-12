@@ -60,14 +60,15 @@ function updateLocation(lat, lon, height = 0) {
       }).addTo(map);
       lines.push(line);
 
-      // Place label near midpoint, offset slightly
-      const midLat = (lat + 0) / 2;
-      const midLon = (lon + sat.lon) / 2;
-      const label = L.tooltip([midLat, midLon], {
+      // Label at 25% along line (closer to user)
+      const frac = 0.25;
+      const labelLat = lat + frac * (0 - lat);
+      const labelLon = lon + frac * (sat.lon - lon);
+      const label = L.tooltip([labelLat, labelLon], {
         permanent: true,
         direction: 'center',
         className: 'line-label',
-        offset: [0, -10],
+        offset: [0, -15],
         pane: 'tooltipPane'
       }).setContent(sat.name).addTo(map);
       labels.push(label);
