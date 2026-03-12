@@ -16,7 +16,9 @@ const satellites = [
   { name: 'MUOS-5', lon: -105 }
 ];
 
-const userMarker = L.marker([0, 0]).addTo(map);
+const userMarker = L.marker([0, 0], {
+  icon: L.divIcon({className: 'user-icon', html: '📍', iconSize: [30, 30]})
+}).addTo(map);
 const lines = [];
 
 function updateLocation(lat, lon, height = 0) {
@@ -29,15 +31,11 @@ function updateLocation(lat, lon, height = 0) {
     height: height
   };
 
-  const gmst = satellite.gstime(new Date());
-
-  lines.forEach(line => map.removeLayer(line));
+  lines.forEach(l => map.removeLayer(l));
   lines.length = 0;
 
   let html = '';
   satellites.forEach(sat => {
-    // Fixed GEO: ECI ≈ ECF for equatorial at that longitude, but use proper transform
-    // For simplicity, approximate ECF lon = sat.lon, lat=0, height=35786 km
     const positionEcf = satellite.geodeticToEcf({
       longitude: satellite.degreesToRadians(sat.lon),
       latitude: 0,
@@ -54,7 +52,18 @@ function updateLocation(lat, lon, height = 0) {
     html += `${sat.name}: Az ${az.toFixed(1)}° El ${el.toFixed(1)}° (${status})<br>`;
 
     if (el > 0) {
-      const line = L.polyline([[lat, lon], [0, sat.lon]], { color }).addTo(map);
+      const line = L.polyline([[lat, lon], [0, sat.lon]], {
+        color,
+        weight: 3,
+        opacity: 0.7
+      }).addTo(map);
+
+      line.bindTooltip(`${sat.name}<br>→ Sub-satellite point`, {
+        permanent: true,
+        direction: 'center',
+        className: 'line-label'
+      }).openTooltip();
+
       lines.push(line);
     }
   });

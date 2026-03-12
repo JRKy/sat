@@ -4,3 +4,4 @@ body { margin:0; height:100vh; font-family:sans-serif; }
 #search { padding:8px; border-radius:4px; border:1px solid #ccc; width:180px; }
 #geo { padding:8px; border-radius:4px; background:#fff; border:1px solid #ccc; margin-left:8px; }
 #info { position:absolute; top:50px; left:10px; z-index:1000; background:#fff8; padding:8px 12px; border-radius:6px; box-shadow:0 2px 8px #0003; font-size:14px; max-width:300px; }
+.leaflet-tooltip { background:#fff8; border:1px solid #ccc; padding:4px 8px; font-size:12px; opacity:0.9; }
