@@ -40,7 +40,10 @@ function updateLocation(lat, lon, height = 0) {
       height: 35786
     };
 
-    const lookAngles = satellite.lookAngles(observer, position);
+    const lookAngles = satellite.topocentricToLookAngles(
+      satellite.topocentric(observer, position)
+    );
+
     const az = lookAngles.azimuth * 180 / Math.PI;
     const el = lookAngles.elevation * 180 / Math.PI;
     const status = el > 10 ? 'Good' : 'Bad';
