@@ -16,10 +16,9 @@ const satellites = [
   { name: 'MUOS-5', lon: -105 }
 ];
 
-const userMarker = L.marker([0, 0], {
-  icon: L.divIcon({className: 'user-icon', html: '📍', iconSize: [30, 30]})
-}).addTo(map);
+const userMarker = L.marker([0, 0]).addTo(map);
 const lines = [];
+const labels = [];
 
 function updateLocation(lat, lon, height = 0) {
   userMarker.setLatLng([lat, lon]);
@@ -32,7 +31,9 @@ function updateLocation(lat, lon, height = 0) {
   };
 
   lines.forEach(l => map.removeLayer(l));
+  labels.forEach(l => map.removeLayer(l));
   lines.length = 0;
+  labels.length = 0;
 
   let html = '';
   satellites.forEach(sat => {
@@ -57,14 +58,19 @@ function updateLocation(lat, lon, height = 0) {
         weight: 3,
         opacity: 0.7
       }).addTo(map);
+      lines.push(line);
 
-      line.bindTooltip(`${sat.name}<br>→ Sub-satellite point`, {
+      // Place label near midpoint, offset slightly
+      const midLat = (lat + 0) / 2;
+      const midLon = (lon + sat.lon) / 2;
+      const label = L.tooltip([midLat, midLon], {
         permanent: true,
         direction: 'center',
-        className: 'line-label'
-      }).openTooltip();
-
-      lines.push(line);
+        className: 'line-label',
+        offset: [0, -10],
+        pane: 'tooltipPane'
+      }).setContent(sat.name).addTo(map);
+      labels.push(label);
     }
   });
 
