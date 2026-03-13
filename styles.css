@@ -64,7 +64,6 @@ body{
   height:36px;
   flex:0 0 auto;
 }
-
 .app-logo img{
   width:36px;
   height:36px;
@@ -307,11 +306,76 @@ body{
   color:var(--muted);
 }
 
-/* ---------- Cutoff ---------- */
+/* ---------- Cutoff / Footprint toggle section ---------- */
 .panel-section{
   padding:12px;
   border-bottom:1px solid var(--border);
   background:linear-gradient(#fff, #fbfbfc);
+}
+
+.toggle-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:12px;
+}
+
+.toggle-title{
+  font-size:13px;
+  font-weight:650;
+  color:#3c4043;
+  margin-bottom:2px;
+}
+
+.toggle-subtitle{
+  font-size:12px;
+  color:var(--muted);
+  line-height:1.2;
+}
+
+.switch{
+  position:relative;
+  display:inline-block;
+  width:44px;
+  height:24px;
+  flex:0 0 auto;
+}
+
+.switch input{
+  opacity:0;
+  width:0;
+  height:0;
+}
+
+.slider{
+  position:absolute;
+  cursor:pointer;
+  inset:0;
+  background:#cfd8dc;
+  transition:.2s;
+  border-radius:999px;
+}
+
+.slider:before{
+  position:absolute;
+  content:"";
+  height:18px;
+  width:18px;
+  left:3px;
+  top:3px;
+  background:white;
+  transition:.2s;
+  border-radius:50%;
+  box-shadow:0 2px 6px rgba(0,0,0,.2);
+}
+
+.switch input:checked + .slider{
+  background:var(--accent);
+}
+
+.switch input:checked + .slider:before{
+  transform:translateX(20px);
 }
 
 .cutoff-row{

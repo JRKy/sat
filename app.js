@@ -32,7 +32,7 @@ L.control.scale({ imperial: true, metric: true, position: "bottomleft" }).addTo(
 ============================ */
 const FOOTPRINT_PANE = "footprintPane";
 map.createPane(FOOTPRINT_PANE);
-map.getPane(FOOTPRINT_PANE).style.zIndex = 250;        // below overlayPane (paths) and markerPane
+map.getPane(FOOTPRINT_PANE).style.zIndex = 250;
 map.getPane(FOOTPRINT_PANE).style.pointerEvents = "none";
 
 /* ============================
@@ -53,6 +53,7 @@ const cutoffValue = document.getElementById("cutoff-value");
 const cutoffHintValue = document.getElementById("cutoff-hint-value");
 const observerInfo = document.getElementById("observer-info");
 const selectedInfo = document.getElementById("selected-info");
+const footprintToggle = document.getElementById("footprint-toggle");
 /* Legacy */
 const info = document.getElementById("info");
 
@@ -60,14 +61,14 @@ const info = document.getElementById("info");
  Constants / State
 ============================ */
 const EARTH_RADIUS_KM = 6371;
-const DEFAULT_SAT_LAT = 0; // degrees
-const DEFAULT_SAT_ALT_KM = 35786; // km (GEO approx)
-const MIN_VISIBLE_EL = 0; // degrees
-const MIN_USABLE_EL = 10; // degrees
+const DEFAULT_SAT_LAT = 0;
+const DEFAULT_SAT_ALT_KM = 35786;
+const MIN_VISIBLE_EL = 0;
+const MIN_USABLE_EL = 10;
 const GREAT_CIRCLE_STEPS = 64;
 
 let satellites = [];
-let satMarkers = new Map(); // name -> L.Marker
+let satMarkers = new Map();
 let lineLayers = [];
 let footprintLayer = null;
 
@@ -76,23 +77,47 @@ let elevationCutoff = 0;
 let selectedSatName = null;
 let lastObserver = { lat: 39.0, lon: -104.0, heightKm: 2.3 };
 
+let footprintEnabled = true;
+if (footprintToggle) footprintEnabled = !!footprintToggle.checked;
+
 /* ============================
- Selected Satellite Footprint
+ Selected Satellite Footprint (respects cutoff + toggle)
 ============================ */
-function updateFootprint(selectedSat) {
+function clearFootprint() {
   if (footprintLayer) {
     map.removeLayer(footprintLayer);
     footprintLayer = null;
   }
+}
+
+function updateFootprint(selectedSat) {
+  clearFootprint();
+
+  if (!footprintEnabled) return;
   if (!selectedSat) return;
 
   const satLat = selectedSat.lat ?? DEFAULT_SAT_LAT;
   const satLon = selectedSat.lon;
   const altKm = selectedSat.alt_km ?? DEFAULT_SAT_ALT_KM;
 
-  // Visibility footprint central angle: acos(Re / (Re + h))
-  const theta = Math.acos(EARTH_RADIUS_KM / (EARTH_RADIUS_KM + altKm));
-  const groundRadiusKm = EARTH_RADIUS_KM * theta;
+  const Re = EARTH_RADIUS_KM;
+  const r = Re + altKm;
+  const k = Re / r;
+
+  // Elevation cutoff (deg) -> radians
+  const e = (elevationCutoff || 0) * Math.PI / 180;
+
+  // Derivation: cos(ψ + e) = k cos(e)
+  // => ψ = arccos(k cos(e)) - e
+  const arg = k * Math.cos(e);
+
+  if (arg >= 1) return;           // no footprint (too strict)
+  if (arg <= -1) return;          // degenerate/unrealistic
+
+  let psi = Math.acos(arg) - e;   // central angle in radians
+  if (!isFinite(psi) || psi <= 0) return;
+
+  const groundRadiusKm = Re * psi;
 
   footprintLayer = L.circle([satLat, satLon], {
     pane: FOOTPRINT_PANE,
@@ -110,7 +135,6 @@ function updateFootprint(selectedSat) {
  Panel Toggle + Pin (with tooltip + persistence)
 ============================ */
 const PIN_STORAGE_KEY = "satPanelPinned";
-
 function safeGetPinnedFromStorage() {
   try {
     return localStorage.getItem(PIN_STORAGE_KEY) === "true";
@@ -118,7 +142,6 @@ function safeGetPinnedFromStorage() {
     return false;
   }
 }
-
 function safeSetPinnedToStorage(val) {
   try {
     localStorage.setItem(PIN_STORAGE_KEY, val ? "true" : "false");
@@ -126,9 +149,7 @@ function safeSetPinnedToStorage(val) {
     /* ignore */
   }
 }
-
 let panelPinned = safeGetPinnedFromStorage();
-
 function syncPanelPinnedUI() {
   if (satPanel) {
     satPanel.classList.toggle("pinned", panelPinned);
@@ -139,65 +160,45 @@ function syncPanelPinnedUI() {
   }
   safeSetPinnedToStorage(panelPinned);
 }
-
 function openPanel() {
   if (!satPanel) return;
   satPanel.classList.add("open");
-  // If pinned, do NOT enable backdrop (map must remain interactive)
   if (satBackdrop) {
     if (panelPinned) satBackdrop.classList.remove("open");
     else satBackdrop.classList.add("open");
   }
 }
-
 function closePanel(force = false) {
   if (!satPanel) return;
-  // Prevent closing if pinned unless forced
   if (panelPinned && !force) return;
   satPanel.classList.remove("open");
   if (satBackdrop) satBackdrop.classList.remove("open");
 }
-
 function togglePanel() {
   if (!satPanel) return;
-  // If pinned and open, ignore toggle close attempts
   if (panelPinned && satPanel.classList.contains("open")) return;
   if (satPanel.classList.contains("open")) closePanel();
   else openPanel();
 }
-
-// Header toggle
 satToggleBtn?.addEventListener("click", togglePanel);
-
-// Close button: always close and unpin (intentional close)
 panelCloseBtn?.addEventListener("click", () => {
   panelPinned = false;
   syncPanelPinnedUI();
   closePanel(true);
 });
-
-// Backdrop click: close only if not pinned
 satBackdrop?.addEventListener("click", () => closePanel(false));
-
-// Pin toggle
 panelPinBtn?.addEventListener("click", () => {
   panelPinned = !panelPinned;
   syncPanelPinnedUI();
-  // Turning pin ON should keep panel visible and allow map interaction
   if (panelPinned) {
     openPanel();
   } else {
-    // If still open and unpinned, enable backdrop again for click-outside close
     if (satPanel?.classList.contains("open") && satBackdrop) satBackdrop.classList.add("open");
   }
 });
-
-// Esc closes only if not pinned
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closePanel(false);
 });
-
-// Restore pinned state on load
 syncPanelPinnedUI();
 if (panelPinned) openPanel();
 
@@ -212,7 +213,6 @@ function userIcon() {
     iconAnchor: [24, 48]
   });
 }
-
 function satIcon(isSelected) {
   return L.divIcon({
     className: isSelected ? "sat-marker selected" : "sat-marker",
@@ -240,11 +240,15 @@ const normAzDeg = (d) => (d % 360 + 360) % 360;
 function greatCirclePoints(lat1, lon1, lat2, lon2, steps = GREAT_CIRCLE_STEPS) {
   const φ1 = degToRad(lat1), λ1 = degToRad(lon1);
   const φ2 = degToRad(lat2), λ2 = degToRad(lon2);
+
   const v1 = [Math.cos(φ1) * Math.cos(λ1), Math.cos(φ1) * Math.sin(λ1), Math.sin(φ1)];
   const v2 = [Math.cos(φ2) * Math.cos(λ2), Math.cos(φ2) * Math.sin(λ2), Math.sin(φ2)];
+
   const dot = Math.min(1, Math.max(-1, v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2]));
   const ω = Math.acos(dot);
+
   if (!isFinite(ω) || ω === 0) return [[lat1, lon1], [lat2, lon2]];
+
   const sinω = Math.sin(ω);
   const pts = [];
   for (let i = 0; i <= steps; i++) {
@@ -272,6 +276,7 @@ function addSatelliteMarkers() {
     const marker = L.marker([sat.lat ?? DEFAULT_SAT_LAT, sat.lon], {
       icon: satIcon(selectedSatName === sat.name)
     }).addTo(map);
+
     marker.bindTooltip(
       `<span class="name">${sat.name}</span><span class="lon">${sat.lon.toFixed(1)}°</span>`,
       {
@@ -281,8 +286,10 @@ function addSatelliteMarkers() {
         offset: [0, -24]
       }
     ).openTooltip();
+
     satMarkers.set(sat.name, marker);
   });
+
   refreshMarkerSelection();
 }
 
@@ -319,6 +326,7 @@ function buildTable(rows) {
     `;
     return;
   }
+
   satTable.innerHTML = `
     <table>
       <thead>
@@ -344,6 +352,7 @@ function buildTable(rows) {
       </tbody>
     </table>
   `;
+
   satTable.querySelectorAll("tr[data-sat]").forEach((row) => {
     row.addEventListener("click", () => {
       const name = row.getAttribute("data-sat");
@@ -445,7 +454,6 @@ function updateLocation(lat, lon, heightKm = 0, setZoom = false) {
   renderObserverInfo(lat, lon, heightKm);
   renderSelectedInfo(selectedRow);
 
-  // ✅ Footprint for selected satellite only
   updateFootprint(selectedRow ? selectedRow.sat : null);
 
   if (info) info.innerHTML = "";
@@ -481,6 +489,18 @@ geoBtn.addEventListener("click", () => {
     );
   });
 });
+
+/* ✅ NEW: Footprint toggle wiring */
+if (footprintToggle) {
+  footprintToggle.addEventListener("change", () => {
+    footprintEnabled = !!footprintToggle.checked;
+    // Recompute footprint immediately based on current selection
+    const selectedSat = selectedSatName
+      ? satellites.find(s => s.name === selectedSatName)
+      : null;
+    updateFootprint(selectedSat);
+  });
+}
 
 /* ============================
  Custom Autocomplete (robust)

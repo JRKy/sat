@@ -24,7 +24,7 @@
   <header id="app-bar">
     <div class="app-left">
 
-      <!-- ✅ FIX: Real logo element -->
+      <!-- Logo -->
       <div class="app-logo" title="Satellite Antenna Tracker">
         <img src="logo.svg" alt="Satellite Antenna Tracker logo">
       </div>
@@ -116,6 +116,20 @@
       </section>
 
       <section class="panel-section">
+
+        <!-- ✅ NEW: Footprint toggle -->
+        <div class="toggle-row">
+          <div class="toggle-text">
+            <div class="toggle-title">Footprint</div>
+            <div class="toggle-subtitle">Show coverage area for selected satellite</div>
+          </div>
+
+          <label class="switch" aria-label="Toggle footprint">
+            <input id="footprint-toggle" type="checkbox" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+
         <div class="cutoff-row">
           <span class="cutoff-label">Elevation cutoff</span>
           <span class="cutoff-value"><span id="cutoff-value">0</span>°</span>
@@ -145,6 +159,5 @@
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/satellite.js@6.0.2/dist/satellite.min.js"></script>
   <script src="app.js"></script>
-
 </body>
 </html>
