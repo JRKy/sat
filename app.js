@@ -37,7 +37,6 @@ const satellites = [
 
 const userMarker = L.marker([0, 0]).addTo(map);
 const lines = [];
-const labels = [];
 const satMarkers = [];
 
 function addSatelliteMarkers() {
@@ -77,9 +76,7 @@ function updateLocation(lat, lon, height = 0) {
   };
 
   lines.forEach(l => map.removeLayer(l));
-  labels.forEach(l => map.removeLayer(l));
   lines.length = 0;
-  labels.length = 0;
 
   let html = '<table><tr><th>Satellite</th><th>Az</th><th>El</th><th>Status</th></tr>';
   satellites.forEach((sat, i) => {
@@ -105,18 +102,6 @@ function updateLocation(lat, lon, height = 0) {
         opacity: 0.7
       }).addTo(map);
       lines.push(line);
-
-      const frac = 0.08 + i * 0.02;
-      const labelLat = lat + frac * (0 - lat);
-      const labelLon = lon + frac * (sat.lon - lon);
-      const label = L.tooltip([labelLat, labelLon], {
-        permanent: true,
-        direction: 'center',
-        className: 'line-label',
-        offset: [0, -12],
-        pane: 'tooltipPane'
-      }).setContent(sat.name).addTo(map);
-      labels.push(label);
     }
   });
   html += '</table>';
@@ -124,13 +109,13 @@ function updateLocation(lat, lon, height = 0) {
   info.innerHTML = '';
 }
 
-// Try auto-detect on load
+// Auto-detect on load
 if (navigator.geolocation) {
   navigator.geolocation.getCurrentPosition(
     pos => updateLocation(pos.coords.latitude, pos.coords.longitude, pos.coords.altitude / 1000 || 0),
     err => {
       console.warn('Geolocation failed:', err);
-      updateLocation(39.0, -104.0, 2.3); // fallback
+      updateLocation(39.0, -104.0, 2.3);
     },
     { enableHighAccuracy: true, timeout: 5000 }
   );
