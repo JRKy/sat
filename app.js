@@ -56,7 +56,7 @@ let lastComputed = [];
 const userMarker = L.marker([0, 0], {
   icon: L.divIcon({
     className: 'user-marker',
-    html: 'location_on',
+    html: '<span class="material-icons">location_on</span>',
     iconSize: [48, 48],
     iconAnchor: [24, 48]
   })
@@ -132,7 +132,7 @@ function addSatelliteMarkers() {
     const marker = L.marker([lat, sat.lon], {
       icon: L.divIcon({
         className: 'sat-marker',
-        html: 'satellite',
+        html: '<span class="material-icons">satellite</span>',
         iconSize: [36, 36],
         iconAnchor: [18, 18]
       })
