@@ -69,7 +69,6 @@ addSatelliteMarkers();
 
 function updateLocation(lat, lon, height = 0) {
   userMarker.setLatLng([lat, lon]);
-  map.setView([lat, lon], 10);
 
   const observerGd = {
     longitude: satellite.degreesToRadians(lon),
@@ -125,6 +124,20 @@ function updateLocation(lat, lon, height = 0) {
   info.innerHTML = '';
 }
 
+// Try auto-detect on load
+if (navigator.geolocation) {
+  navigator.geolocation.getCurrentPosition(
+    pos => updateLocation(pos.coords.latitude, pos.coords.longitude, pos.coords.altitude / 1000 || 0),
+    err => {
+      console.warn('Geolocation failed:', err);
+      updateLocation(39.0, -104.0, 2.3); // fallback
+    },
+    { enableHighAccuracy: true, timeout: 5000 }
+  );
+} else {
+  updateLocation(39.0, -104.0, 2.3);
+}
+
 // Autocomplete
 let timeout;
 searchInput.addEventListener('input', () => {
@@ -167,6 +180,3 @@ geoBtn.addEventListener('click', () => {
     updateLocation(pos.coords.latitude, pos.coords.longitude, pos.coords.altitude / 1000 || 0);
   });
 });
-
-// Initial load
-updateLocation(39.0, -104.0, 2.3);
