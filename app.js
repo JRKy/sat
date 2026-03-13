@@ -1,8 +1,25 @@
-const map = L.map('map').setView([39.0, -104.0], 4);
+const map = L.map('map', {
+  zoomControl: true,
+  attributionControl: true
+}).setView([39.0, -104.0], 4);
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '&copy; OpenStreetMap'
-}).addTo(map);
+const baseLayers = {
+  "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+  }),
+  "Carto Dark": L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap & Carto'
+  }),
+  "Esri Satellite": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles &copy; Esri'
+  })
+};
+
+baseLayers["OpenStreetMap"].addTo(map);
+
+L.control.layers(baseLayers, null, { position: 'topright' }).addTo(map);
+
+L.control.scale({ imperial: false, metric: true }).addTo(map);
 
 const info = document.getElementById('info');
 const searchInput = document.getElementById('search');
@@ -21,6 +38,34 @@ const satellites = [
 const userMarker = L.marker([0, 0]).addTo(map);
 const lines = [];
 const labels = [];
+const satMarkers = [];
+
+function addSatelliteMarkers() {
+  satMarkers.forEach(m => map.removeLayer(m));
+  satMarkers.length = 0;
+
+  satellites.forEach(sat => {
+    const marker = L.marker([0, sat.lon], {
+      icon: L.divIcon({
+        className: 'sat-marker',
+        html: '🛰️',
+        iconSize: [32, 32],
+        iconAnchor: [16, 16]
+      })
+    }).addTo(map);
+
+    marker.bindTooltip(`${sat.name}<br>${sat.lon.toFixed(1)}°`, {
+      permanent: true,
+      direction: 'top',
+      className: 'sat-label',
+      offset: [0, -20]
+    }).openTooltip();
+
+    satMarkers.push(marker);
+  });
+}
+
+addSatelliteMarkers();
 
 function updateLocation(lat, lon, height = 0) {
   userMarker.setLatLng([lat, lon]);
@@ -99,9 +144,7 @@ searchInput.addEventListener('input', () => {
           opt.value = place.display_name;
           suggestions.appendChild(opt);
         });
-        searchInput.focus();
-        searchInput.blur();
-        searchInput.focus();
+        searchInput.focus(); searchInput.blur(); searchInput.focus();
       })
       .catch(err => console.error('Nominatim error:', err));
   }, 400);
@@ -113,9 +156,7 @@ searchInput.addEventListener('change', () => {
   fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`)
     .then(res => res.json())
     .then(data => {
-      if (data[0]) {
-        updateLocation(parseFloat(data[0].lat), parseFloat(data[0].lon));
-      }
+      if (data[0]) updateLocation(parseFloat(data[0].lat), parseFloat(data[0].lon));
     });
 });
 
