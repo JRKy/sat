@@ -8,6 +8,7 @@ const info = document.getElementById('info');
 const searchInput = document.getElementById('search');
 const geoBtn = document.getElementById('geo');
 const satTable = document.getElementById('sat-table');
+const suggestions = document.getElementById('suggestions');
 
 const satellites = [
   { name: 'MUOS-1', lon: -100 },
@@ -76,11 +77,45 @@ function updateLocation(lat, lon, height = 0) {
   });
   html += '</table>';
   satTable.innerHTML = html;
-  info.innerHTML = ''; // optional: move table info here if preferred
+  info.innerHTML = '';
 }
 
-// Initial load
-updateLocation(39.0, -104.0, 2.3);
+// Autocomplete
+let timeout;
+searchInput.addEventListener('input', () => {
+  clearTimeout(timeout);
+  timeout = setTimeout(() => {
+    const q = searchInput.value.trim();
+    if (q.length < 3) {
+      suggestions.innerHTML = '';
+      return;
+    }
+    fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=8&addressdetails=1`)
+      .then(res => res.json())
+      .then(data => {
+        suggestions.innerHTML = '';
+        data.forEach(place => {
+          const opt = document.createElement('option');
+          opt.value = place.display_name;
+          suggestions.appendChild(opt);
+        });
+      });
+  }, 300);
+});
+
+searchInput.addEventListener('change', () => {
+  const q = searchInput.value.trim();
+  if (!q) return;
+  fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`)
+    .then(res => res.json())
+    .then(data => {
+      if (data[0]) {
+        updateLocation(parseFloat(data[0].lat), parseFloat(data[0].lon));
+      }
+    });
+});
+
+// Rest unchanged...
 
 map.on('click', e => updateLocation(e.latlng.lat, e.latlng.lng));
 
@@ -90,14 +125,5 @@ geoBtn.addEventListener('click', () => {
   });
 });
 
-searchInput.addEventListener('keypress', e => {
-  if (e.key === 'Enter') {
-    fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchInput.value)}&format=json`)
-      .then(res => res.json())
-      .then(data => {
-        if (data[0]) {
-          updateLocation(parseFloat(data[0].lat), parseFloat(data[0].lon));
-        }
-      });
-  }
-});
+// Initial load
+updateLocation(39.0, -104.0, 2.3);

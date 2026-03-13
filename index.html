@@ -9,18 +9,8 @@
 </head>
 <body>
   <div id="controls">
-    <input id="search" list="locations" type="text" placeholder="Search location (e.g. Denver, CO)">
-    <datalist id="locations">
-      <option value="Black Forest, CO">
-      <option value="Denver, CO">
-      <option value="Colorado Springs, CO">
-      <option value="Washington DC">
-      <option value="New York, NY">
-      <option value="Los Angeles, CA">
-      <option value="London, UK">
-      <option value="Tokyo, Japan">
-      <option value="Sydney, Australia">
-    </datalist>
+    <input id="search" type="text" placeholder="Search location" autocomplete="off">
+    <datalist id="suggestions"></datalist>
     <button id="geo">Use My Location</button>
   </div>
   <div id="sat-table"></div>
