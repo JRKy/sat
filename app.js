@@ -1,24 +1,44 @@
 const map = L.map('map', {
   zoomControl: true,
-  attributionControl: true
+  attributionControl: true,
+  minZoom: 3,
+  maxZoom: 19
 }).setView([39.0, -104.0], 4);
 
 const baseLayers = {
   "Satellite": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-    attribution: 'Tiles &copy; Esri'
+    attribution: 'Tiles &copy; Esri',
+    maxZoom: 19
+  }),
+  "Hybrid": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles &copy; Esri',
+    maxZoom: 19
+  }).addTo(map), // base satellite
+  "Labels": L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_labels_under/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap & Carto',
+    maxZoom: 19,
+    pane: 'overlayPane',
+    opacity: 0.85
   }),
   "Dark": L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap & Carto'
+    attribution: '&copy; OpenStreetMap & Carto',
+    maxZoom: 19
   }),
   "Streets": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors'
+    attribution: '&copy; OpenStreetMap contributors',
+    maxZoom: 19
   }),
   "Terrain": L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-    attribution: 'Map data: © OpenTopoMap (CC-BY-SA)'
+    attribution: 'Map data: © OpenTopoMap (CC-BY-SA)',
+    maxZoom: 17
   })
 };
 
-baseLayers["Streets"].addTo(map);  // default to Streets
+// Hybrid = Satellite + Labels
+const hybridGroup = L.layerGroup([baseLayers["Satellite"], baseLayers["Labels"]]);
+baseLayers["Hybrid"] = hybridGroup;
+
+hybridGroup.addTo(map); // default to hybrid
 
 L.control.layers(baseLayers, null, { position: 'topright' }).addTo(map);
 
@@ -126,7 +146,7 @@ if (navigator.geolocation) {
   updateLocation(39.0, -104.0, 2.3);
 }
 
-// Autocomplete
+// Autocomplete and other event listeners unchanged...
 let timeout;
 searchInput.addEventListener('input', () => {
   clearTimeout(timeout);
