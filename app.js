@@ -90,19 +90,19 @@ function updateLocation(lat, lon, height = 0) {
 
     const az = lookAngles.azimuth * 180 / Math.PI;
     const el = lookAngles.elevation * 180 / Math.PI;
-    const status = el > 10 ? 'Good' : 'Bad';
-    const color = el > 10 ? 'green' : 'red';
+    const status = el > 10 ? 'Good' : (el > 0 ? 'Low' : 'Bad');
+    let color = el > 10 ? 'green' : (el > 0 ? 'blue' : 'red');
+    let dashArray = el > 10 ? null : '5, 5';
 
     html += `<tr style="color:${color}"><td>${sat.name}</td><td>${az.toFixed(1)}°</td><td>${el.toFixed(1)}°</td><td>${status}</td></tr>`;
 
-    if (el > 0) {
-      const line = L.polyline([[lat, lon], [0, sat.lon]], {
-        color,
-        weight: 3,
-        opacity: 0.7
-      }).addTo(map);
-      lines.push(line);
-    }
+    const line = L.polyline([[lat, lon], [0, sat.lon]], {
+      color,
+      weight: 3,
+      opacity: 0.7,
+      dashArray
+    }).addTo(map);
+    lines.push(line);
   });
   html += '</table>';
   satTable.innerHTML = html;
