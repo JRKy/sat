@@ -56,8 +56,8 @@ const userMarker = L.marker([0, 0], {
   icon: L.divIcon({
     className: 'user-marker',
     html: '<span class="material-icons">location_on</span>',
-    iconSize: [36, 36],
-    iconAnchor: [18, 36]
+    iconSize: [40, 40],
+    iconAnchor: [20, 40]
   })
 }).addTo(map);
 
@@ -82,7 +82,7 @@ function addSatelliteMarkers() {
       permanent: true,
       direction: 'top',
       className: 'sat-label',
-      offset: [0, -20]
+      offset: [0, -10]
     }).openTooltip();
 
     satMarkers.push(marker);
