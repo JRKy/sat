@@ -177,12 +177,10 @@ body{
   display:flex;
   flex-direction:column;
   overflow:hidden;
-
-  /* ✅ FIX: allow clicks to pass through to map controls */
   pointer-events:none;
 }
 
-/* ✅ Re-enable interaction inside the panel */
+/* Re-enable interaction inside the panel */
 #sat-panel *{
   pointer-events:auto;
 }
@@ -423,4 +421,10 @@ tbody tr.selected{ background:#e8f0fe; }
   #sat-panel.collapsed .panel-body{ display:none; }
   .search-container{ height:40px; }
   .icon-btn{ width:40px; height:40px; }
+}
+
+/* ✅ FINAL FIX: ensure Leaflet controls render above app UI */
+.leaflet-top,
+.leaflet-bottom{
+  z-index:1400;
 }
