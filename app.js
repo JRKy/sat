@@ -1,6 +1,6 @@
 const map = L.map('map', {
   zoomControl: true,
-  attributionControl: false,
+  attributionControl: true,  // keep attribution visible
   minZoom: 3,
   maxZoom: 19
 }).setView([39.0, -104.0], 4);
@@ -28,7 +28,7 @@ baseLayers["Streets"].addTo(map);
 
 L.control.layers(baseLayers, null, { position: 'topright' }).addTo(map);
 
-L.control.scale({ imperial: true, metric: true }).addTo(map);
+L.control.scale({ imperial: true, metric: true, position: 'bottomleft' }).addTo(map);  // explicit position
 
 const info = document.getElementById('info');
 const searchInput = document.getElementById('search');
