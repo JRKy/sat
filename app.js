@@ -33,7 +33,6 @@ const searchInput = document.getElementById('search');
 const geoBtn = document.getElementById('geo');
 const satTable = document.getElementById('sat-table');
 const suggestions = document.getElementById('suggestions');
-const sortSelect = document.getElementById('sort');
 
 const DEFAULT_SAT_LAT = 0;
 const DEFAULT_SAT_ALT_KM = 35786;
@@ -44,11 +43,7 @@ const GREAT_CIRCLE_STEPS = 64;
 let satellitesRaw = [];
 let satMarkers = [];
 let lines = [];
-let selectedSatName = null;
-let sortMode = 'lon';
-
 let lastObserver = { lat: 39.0, lon: -104.0, heightKm: 2.3 };
-let lastComputed = [];
 
 const userMarker = L.marker([0, 0], {
   icon: L.divIcon({
@@ -86,7 +81,10 @@ function greatCirclePoints(lat1, lon1, lat2, lon2, steps = GREAT_CIRCLE_STEPS) {
     const y = a*v1[1] + b*v2[1];
     const z = a*v1[2] + b*v2[2];
 
-    pts.push([radToDeg(Math.atan2(z, Math.sqrt(x*x + y*y))), radToDeg(Math.atan2(y, x))]);
+    pts.push([
+      radToDeg(Math.atan2(z, Math.sqrt(x*x + y*y))),
+      radToDeg(Math.atan2(y, x))
+    ]);
   }
   return pts;
 }
@@ -130,10 +128,8 @@ function updateLocation(lat, lon, heightKm = 0, setZoom = false) {
     height: heightKm
   };
 
-  let html = `
-<table>
-<tr><th>Satellite</th><th>Az</th><th>El</th><th>Status</th></tr>
-`;
+  let html = `<table>
+<tr><th>Satellite</th><th>Az</th><th>El</th><th>Status</th></tr>`;
 
   satellitesRaw.forEach(sat => {
     const positionEcf = satellite.geodeticToEcf({
@@ -152,7 +148,6 @@ function updateLocation(lat, lon, heightKm = 0, setZoom = false) {
 
     html += `<tr><td>${sat.name}</td><td>${az.toFixed(1)}°</td><td>${el.toFixed(1)}°</td><td>${status}</td></tr>`;
 
-    // ✅ FIX: only draw LOS lines when satellite is above the horizon
     if (el > 0) {
       const pts = greatCirclePoints(lat, lon, sat.lat ?? 0, sat.lon);
       lines.push(L.polyline(pts, {
@@ -162,9 +157,30 @@ function updateLocation(lat, lon, heightKm = 0, setZoom = false) {
   });
 
   satTable.innerHTML = html + '</table>';
-  info.innerHTML = `<b>Observer:</b> ${lat.toFixed(4)}°, ${lon.toFixed(4)}° — Lines only drawn for visible satellites (El > 0°)`;
+  info.innerHTML = `<b>Observer:</b> ${lat.toFixed(4)}°, ${lon.toFixed(4)}° — click map to reposition`;
 }
 
 fetch('satellites.json')
   .then(r => r.json())
-  .then(d => { satellitesRaw = d; addSatelliteMarkers(); updateLocation(lastObserver.lat, lastObserver.lon, lastObserver.heightKm, true); });
+  .then(d => {
+    satellitesRaw = d;
+    addSatelliteMarkers();
+    updateLocation(lastObserver.lat, lastObserver.lon, lastObserver.heightKm, true);
+  });
+
+/* ✅ RESTORED: click anywhere on map to set observer */
+map.on('click', e => {
+  updateLocation(e.latlng.lat, e.latlng.lng, lastObserver.heightKm, false);
+});
+
+geoBtn.addEventListener('click', () => {
+  if (!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(pos => {
+    updateLocation(
+      pos.coords.latitude,
+      pos.coords.longitude,
+      (pos.coords.altitude ?? 0) / 1000,
+      true
+    );
+  });
+});
