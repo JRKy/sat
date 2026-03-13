@@ -28,7 +28,7 @@ baseLayers["Streets"].addTo(map);
 
 L.control.layers(baseLayers, null, { position: 'topright' }).addTo(map);
 
-L.control.scale({ imperial: false, metric: true }).addTo(map);
+L.control.scale({ imperial: true, metric: true }).addTo(map);
 
 const info = document.getElementById('info');
 const searchInput = document.getElementById('search');
