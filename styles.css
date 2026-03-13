@@ -112,7 +112,9 @@ body{
   color:var(--accent);
 }
 
-.icon-btn:active{ transform:translateY(1px); }
+.icon-btn:active{
+  transform:translateY(1px);
+}
 
 /* ---------- Custom autocomplete dropdown ---------- */
 .autocomplete{
@@ -128,6 +130,7 @@ body{
   max-height:340px;
   z-index:1300;
 }
+
 .autocomplete.hidden{ display:none; }
 
 .autocomplete-item{
@@ -139,16 +142,26 @@ body{
   gap:10px;
   align-items:flex-start;
 }
+
 .autocomplete-item .material-icons{
   font-size:18px;
   color:var(--muted);
   margin-top:1px;
 }
+
 .autocomplete-item:hover{ background:#f7faff; }
 .autocomplete-item.active{ background:#e8f0fe; }
 
-.autocomplete-primary{ font-weight:650; color:#3c4043; }
-.autocomplete-secondary{ color:var(--muted); font-size:12px; margin-top:2px; }
+.autocomplete-primary{
+  font-weight:650;
+  color:#3c4043;
+}
+
+.autocomplete-secondary{
+  color:var(--muted);
+  font-size:12px;
+  margin-top:2px;
+}
 
 /* ---------- Satellite Panel: Drawer / Sheet ---------- */
 #sat-panel{
@@ -211,7 +224,11 @@ body{
   cursor:pointer;
 }
 
-.select-wrap .material-icons{ font-size:18px; color:var(--muted); }
+.select-wrap .material-icons{
+  font-size:18px;
+  color:var(--muted);
+}
+
 .select-wrap select{
   border:none;
   outline:none;
@@ -227,11 +244,21 @@ body{
   flex-direction:column;
 }
 
-/* Sections inside panel */
-.panel-section{
+/* ---------- Panel Info Row (Observer + Selection) ---------- */
+.panel-info-row{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
   padding:12px;
   border-bottom:1px solid var(--border);
   background:linear-gradient(#fff, #fbfbfc);
+}
+
+.info-card{
+  padding:10px;
+  border:1px solid var(--border);
+  border-radius:10px;
+  background:#fff;
 }
 
 .section-title{
@@ -246,9 +273,17 @@ body{
   line-height:1.35;
 }
 
-.muted{ color:var(--muted); }
+.muted{
+  color:var(--muted);
+}
 
-/* Cutoff row */
+/* ---------- Cutoff ---------- */
+.panel-section{
+  padding:12px;
+  border-bottom:1px solid var(--border);
+  background:linear-gradient(#fff, #fbfbfc);
+}
+
 .cutoff-row{
   display:flex;
   align-items:baseline;
@@ -257,10 +292,24 @@ body{
   margin-bottom:8px;
 }
 
-.cutoff-label{ font-size:13px; font-weight:650; color:#3c4043; }
-.cutoff-value{ font-size:13px; color:var(--muted); }
+.cutoff-label{
+  font-size:13px;
+  font-weight:650;
+  color:#3c4043;
+}
+
+.cutoff-value{
+  font-size:13px;
+  color:var(--muted);
+}
+
 #cutoff{ width:100%; }
-.cutoff-hint{ margin-top:6px; font-size:12px; color:var(--muted); }
+
+.cutoff-hint{
+  margin-top:6px;
+  font-size:12px;
+  color:var(--muted);
+}
 
 /* ---------- Table ---------- */
 #sat-table{
@@ -295,7 +344,7 @@ tbody tr{ cursor:pointer; }
 tbody tr:hover{ background:#f7faff; }
 tbody tr.selected{ background:#e8f0fe; }
 
-/* status pill */
+/* ---------- Status Pills ---------- */
 .status-pill{
   display:inline-block;
   padding:2px 8px;
@@ -305,9 +354,24 @@ tbody tr.selected{ background:#e8f0fe; }
   border:1px solid var(--border);
   background:#fff;
 }
-.status-good{ color:var(--good); border-color:rgba(30,142,62,.25); background:rgba(30,142,62,.06); }
-.status-low{ color:var(--low); border-color:rgba(26,115,232,.25); background:rgba(26,115,232,.06); }
-.status-bad{ color:var(--bad); border-color:rgba(217,48,37,.25); background:rgba(217,48,37,.06); }
+
+.status-good{
+  color:var(--good);
+  border-color:rgba(30,142,62,.25);
+  background:rgba(30,142,62,.06);
+}
+
+.status-low{
+  color:var(--low);
+  border-color:rgba(26,115,232,.25);
+  background:rgba(26,115,232,.06);
+}
+
+.status-bad{
+  color:var(--bad);
+  border-color:rgba(217,48,37,.25);
+  background:rgba(217,48,37,.06);
+}
 
 /* ---------- Leaflet Tooltip Labels ---------- */
 .leaflet-tooltip.sat-label{
@@ -336,7 +400,7 @@ tbody tr.selected{ background:#e8f0fe; }
   line-height:1.15;
 }
 
-/* marker icons */
+/* ---------- Marker Icons ---------- */
 .user-marker{
   font-size:44px;
   color:var(--accent);
@@ -392,6 +456,10 @@ tbody tr.selected{ background:#e8f0fe; }
 @media (max-width: 600px){
   :root{
     --appbar-h:60px;
+  }
+
+  .panel-info-row{
+    grid-template-columns:1fr;
   }
 
   #sat-panel{

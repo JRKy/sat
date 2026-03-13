@@ -44,7 +44,6 @@
         <span class="material-icons">my_location</span>
       </button>
 
-      <!-- ✅ NEW: Toggle Satellite Panel -->
       <button id="sat-toggle"
               class="icon-btn"
               title="Satellites"
@@ -58,11 +57,12 @@
   <!-- Map -->
   <div id="map"></div>
 
-  <!-- ✅ Backdrop (closes panel when clicked) -->
+  <!-- Backdrop -->
   <div id="sat-backdrop" class="sat-backdrop"></div>
 
-  <!-- ✅ Satellite Panel (Drawer / Bottom Sheet) -->
+  <!-- Satellite Panel -->
   <aside id="sat-panel" aria-label="Satellite panel">
+
     <div class="panel-header">
       <div class="panel-title">
         <span class="material-icons">satellite_alt</span>
@@ -89,21 +89,26 @@
 
     <div class="panel-body">
 
-      <!-- ✅ Observer + selected + cutoff moved into panel -->
-      <section class="panel-section">
-        <div class="section-title">Observer</div>
-        <div id="observer-info" class="section-body">
-          <div class="muted">Click map to set observer location.</div>
+      <!-- ✅ Combined Observer + Selection row -->
+      <section class="panel-info-row">
+
+        <div class="info-card">
+          <div class="section-title">Observer</div>
+          <div id="observer-info" class="section-body">
+            <div class="muted">Click map to set observer location.</div>
+          </div>
         </div>
+
+        <div class="info-card">
+          <div class="section-title">Selection</div>
+          <div id="selected-info" class="section-body">
+            <div class="muted">None (tap a row)</div>
+          </div>
+        </div>
+
       </section>
 
-      <section class="panel-section">
-        <div class="section-title">Selection</div>
-        <div id="selected-info" class="section-body">
-          <div class="muted">None (tap a row)</div>
-        </div>
-      </section>
-
+      <!-- Cutoff -->
       <section class="panel-section">
         <div class="cutoff-row">
           <span class="cutoff-label">Elevation cutoff</span>
@@ -124,10 +129,11 @@
       </section>
 
       <div id="sat-table"></div>
+
     </div>
   </aside>
 
-  <!-- Legacy info container (now unused; hidden via CSS) -->
+  <!-- Legacy (hidden) -->
   <div id="info"></div>
 
   <!-- JS -->
