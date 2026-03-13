@@ -5,44 +5,78 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Satellite Antenna Tracker</title>
 
+  <!-- Leaflet -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"/>
+
+  <!-- Google Material Icons -->
   <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons"/>
+
+  <!-- App styles -->
   <link rel="stylesheet" href="styles.css"/>
 </head>
 <body>
 
   <!-- Top App Bar -->
   <header id="app-bar">
-    <div class="app-group left">
-      <div class="search-container">
-        <span class="material-icons">search</span>
-        <input id="search" list="suggestions" type="text" placeholder="Search location" autocomplete="off">
+    <div class="app-left">
+      <div class="search-wrap">
+        <div class="search-container" title="Search location">
+          <span class="material-icons">search</span>
+          <input id="search" type="text" placeholder="Search location" autocomplete="off" />
+        </div>
+
+        <!-- Custom autocomplete dropdown (replaces fragile datalist UX) -->
+        <div id="autocomplete" class="autocomplete hidden" role="listbox" aria-label="Location suggestions"></div>
       </div>
 
-      <button id="geo" title="Use current location">
+      <button id="geo" class="icon-btn" title="Use current location" aria-label="Use current location">
         <span class="material-icons">my_location</span>
       </button>
     </div>
   </header>
 
-  <datalist id="suggestions"></datalist>
-
   <div id="map"></div>
 
-  <!-- Satellite Table Card -->
+  <!-- Satellite Panel -->
   <aside id="sat-panel">
     <div class="panel-header">
-      <span>Satellites</span>
-      <select id="sort">
-        <option value="lon">Longitude</option>
-        <option value="el">Elevation</option>
-      </select>
+      <div class="panel-title">
+        <span class="material-icons">satellite_alt</span>
+        <span>Satellites</span>
+      </div>
+
+      <div class="panel-actions">
+        <label class="select-wrap" title="Sort satellites">
+          <span class="material-icons">sort</span>
+          <select id="sort" aria-label="Sort satellites">
+            <option value="lon" selected>Longitude</option>
+            <option value="el">Elevation</option>
+          </select>
+        </label>
+
+        <button id="panel-toggle" class="icon-btn panel-toggle" title="Collapse panel" aria-label="Collapse panel">
+          <span class="material-icons" id="panel-toggle-icon">expand_more</span>
+        </button>
+      </div>
     </div>
-    <div id="sat-table"></div>
+
+    <div class="panel-body">
+      <div class="cutoff">
+        <div class="cutoff-row">
+          <span class="cutoff-label">Elevation cutoff</span>
+          <span class="cutoff-value"><span id="cutoff-value">0</span>°</span>
+        </div>
+        <input id="cutoff" type="range" min="0" max="30" step="1" value="0" aria-label="Elevation cutoff slider">
+        <div class="cutoff-hint">Showing satellites with El ≥ <span id="cutoff-hint-value">0</span>°</div>
+      </div>
+
+      <div id="sat-table"></div>
+    </div>
   </aside>
 
   <div id="info"></div>
 
+  <!-- JS -->
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/satellite.js@6.0.2/dist/satellite.min.js"></script>
   <script src="app.js"></script>
