@@ -3,10 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-
   <title>Satellite Antenna Tracker</title>
 
-  <!-- ✅ Favicons (SVG primary, ICO fallback) -->
+  <!-- Favicons -->
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="icon" href="favicon.ico" sizes="any">
 
@@ -25,6 +24,7 @@
   <!-- Top App Bar -->
   <header id="app-bar">
     <div class="app-left">
+
       <div class="search-wrap">
         <div class="search-container" title="Search location">
           <span class="material-icons">search</span>
@@ -43,13 +43,26 @@
               aria-label="Use current location">
         <span class="material-icons">my_location</span>
       </button>
+
+      <!-- ✅ NEW: Toggle Satellite Panel -->
+      <button id="sat-toggle"
+              class="icon-btn"
+              title="Satellites"
+              aria-label="Satellites">
+        <span class="material-icons">satellite_alt</span>
+      </button>
+
     </div>
   </header>
 
+  <!-- Map -->
   <div id="map"></div>
 
-  <!-- Satellite Panel -->
-  <aside id="sat-panel">
+  <!-- ✅ Backdrop (closes panel when clicked) -->
+  <div id="sat-backdrop" class="sat-backdrop"></div>
+
+  <!-- ✅ Satellite Panel (Drawer / Bottom Sheet) -->
+  <aside id="sat-panel" aria-label="Satellite panel">
     <div class="panel-header">
       <div class="panel-title">
         <span class="material-icons">satellite_alt</span>
@@ -65,17 +78,33 @@
           </select>
         </label>
 
-        <button id="panel-toggle"
-                class="icon-btn panel-toggle"
-                title="Collapse panel"
-                aria-label="Collapse panel">
-          <span class="material-icons" id="panel-toggle-icon">expand_more</span>
+        <button id="panel-close"
+                class="icon-btn"
+                title="Close"
+                aria-label="Close">
+          <span class="material-icons">close</span>
         </button>
       </div>
     </div>
 
     <div class="panel-body">
-      <div class="cutoff">
+
+      <!-- ✅ Observer + selected + cutoff moved into panel -->
+      <section class="panel-section">
+        <div class="section-title">Observer</div>
+        <div id="observer-info" class="section-body">
+          <div class="muted">Click map to set observer location.</div>
+        </div>
+      </section>
+
+      <section class="panel-section">
+        <div class="section-title">Selection</div>
+        <div id="selected-info" class="section-body">
+          <div class="muted">None (tap a row)</div>
+        </div>
+      </section>
+
+      <section class="panel-section">
         <div class="cutoff-row">
           <span class="cutoff-label">Elevation cutoff</span>
           <span class="cutoff-value"><span id="cutoff-value">0</span>°</span>
@@ -92,12 +121,13 @@
         <div class="cutoff-hint">
           Showing satellites with El ≥ <span id="cutoff-hint-value">0</span>°
         </div>
-      </div>
+      </section>
 
       <div id="sat-table"></div>
     </div>
   </aside>
 
+  <!-- Legacy info container (now unused; hidden via CSS) -->
   <div id="info"></div>
 
   <!-- JS -->

@@ -5,15 +5,16 @@
   --text:#202124;
   --muted:#5f6368;
   --accent:#1a73e8;
+
   --good:#1e8e3e;
   --low:#1a73e8;
   --bad:#d93025;
+
   --radius:12px;
   --shadow:0 10px 28px rgba(0,0,0,.14);
   --shadow-soft:0 4px 14px rgba(0,0,0,.12);
+
   --appbar-h:64px;
-  /* reserve space for Leaflet layer/zoom controls */
-  --leaflet-control-gap:56px;
 }
 
 *{ box-sizing:border-box; }
@@ -111,9 +112,7 @@ body{
   color:var(--accent);
 }
 
-.icon-btn:active{
-  transform:translateY(1px);
-}
+.icon-btn:active{ transform:translateY(1px); }
 
 /* ---------- Custom autocomplete dropdown ---------- */
 .autocomplete{
@@ -129,7 +128,6 @@ body{
   max-height:340px;
   z-index:1300;
 }
-
 .autocomplete.hidden{ display:none; }
 
 .autocomplete-item{
@@ -141,48 +139,37 @@ body{
   gap:10px;
   align-items:flex-start;
 }
-
 .autocomplete-item .material-icons{
   font-size:18px;
   color:var(--muted);
   margin-top:1px;
 }
-
 .autocomplete-item:hover{ background:#f7faff; }
 .autocomplete-item.active{ background:#e8f0fe; }
 
-.autocomplete-primary{
-  font-weight:650;
-  color:#3c4043;
-}
+.autocomplete-primary{ font-weight:650; color:#3c4043; }
+.autocomplete-secondary{ color:var(--muted); font-size:12px; margin-top:2px; }
 
-.autocomplete-secondary{
-  color:var(--muted);
-  font-size:12px;
-  margin-top:2px;
-}
-
-/* ---------- Satellite Panel ---------- */
+/* ---------- Satellite Panel: Drawer / Sheet ---------- */
 #sat-panel{
   position:fixed;
-  top:calc(var(--appbar-h) + var(--leaflet-control-gap) + 12px);
-  right:12px;
-  width:320px;
-  max-height:calc(100vh - var(--appbar-h) - var(--leaflet-control-gap) - 24px);
+  top:var(--appbar-h);
+  right:0;
+  width:min(420px, 92vw);
+  height:calc(100vh - var(--appbar-h));
   background:var(--card);
-  border:1px solid var(--border);
-  border-radius:var(--radius);
-  box-shadow:var(--shadow);
-  z-index:900;
+  border-left:1px solid var(--border);
+  box-shadow:-10px 0 28px rgba(0,0,0,.18);
+  z-index:1250;
   display:flex;
   flex-direction:column;
-  overflow:hidden;
-  pointer-events:none;
+
+  transform:translateX(100%);
+  transition:transform .25s ease;
 }
 
-/* Re-enable interaction inside the panel */
-#sat-panel *{
-  pointer-events:auto;
+#sat-panel.open{
+  transform:translateX(0);
 }
 
 .panel-header{
@@ -224,11 +211,7 @@ body{
   cursor:pointer;
 }
 
-.select-wrap .material-icons{
-  font-size:18px;
-  color:var(--muted);
-}
-
+.select-wrap .material-icons{ font-size:18px; color:var(--muted); }
 .select-wrap select{
   border:none;
   outline:none;
@@ -237,26 +220,35 @@ body{
   cursor:pointer;
 }
 
-.panel-toggle{
-  display:none; /* mobile only */
-  width:36px;
-  height:36px;
-  box-shadow:none;
-}
-
 .panel-body{
+  overflow:auto;
+  -webkit-overflow-scrolling:touch;
   display:flex;
   flex-direction:column;
-  min-height:0;
 }
 
-/* Elevation cutoff */
-.cutoff{
-  padding:10px 12px 12px 12px;
+/* Sections inside panel */
+.panel-section{
+  padding:12px;
   border-bottom:1px solid var(--border);
   background:linear-gradient(#fff, #fbfbfc);
 }
 
+.section-title{
+  font-size:13px;
+  font-weight:650;
+  color:#3c4043;
+  margin-bottom:6px;
+}
+
+.section-body{
+  font-size:13px;
+  line-height:1.35;
+}
+
+.muted{ color:var(--muted); }
+
+/* Cutoff row */
 .cutoff-row{
   display:flex;
   align-items:baseline;
@@ -265,30 +257,15 @@ body{
   margin-bottom:8px;
 }
 
-.cutoff-label{
-  font-size:13px;
-  font-weight:650;
-  color:#3c4043;
-}
-
-.cutoff-value{
-  font-size:13px;
-  color:var(--muted);
-}
-
+.cutoff-label{ font-size:13px; font-weight:650; color:#3c4043; }
+.cutoff-value{ font-size:13px; color:var(--muted); }
 #cutoff{ width:100%; }
-
-.cutoff-hint{
-  margin-top:6px;
-  font-size:12px;
-  color:var(--muted);
-}
+.cutoff-hint{ margin-top:6px; font-size:12px; color:var(--muted); }
 
 /* ---------- Table ---------- */
 #sat-table{
+  padding:0;
   overflow:auto;
-  -webkit-overflow-scrolling:touch;
-  min-height:0;
 }
 
 table{
@@ -328,7 +305,6 @@ tbody tr.selected{ background:#e8f0fe; }
   border:1px solid var(--border);
   background:#fff;
 }
-
 .status-good{ color:var(--good); border-color:rgba(30,142,62,.25); background:rgba(30,142,62,.06); }
 .status-low{ color:var(--low); border-color:rgba(26,115,232,.25); background:rgba(26,115,232,.06); }
 .status-bad{ color:var(--bad); border-color:rgba(217,48,37,.25); background:rgba(217,48,37,.06); }
@@ -384,26 +360,38 @@ tbody tr.selected{ background:#e8f0fe; }
   text-shadow:0 5px 14px rgba(26,115,232,.45);
 }
 
-/* ---------- Info Panel ---------- */
-#info{
+/* ---------- Backdrop ---------- */
+.sat-backdrop{
   position:fixed;
-  left:12px;
-  bottom:12px;
-  z-index:1100;
-  background:rgba(255,255,255,.95);
-  border:1px solid var(--border);
-  border-radius:12px;
-  box-shadow:var(--shadow-soft);
-  padding:10px 12px;
-  font-size:13px;
-  max-width:min(560px, calc(100vw - 24px));
+  top:var(--appbar-h);
+  left:0;
+  right:0;
+  bottom:0;
+  background:rgba(0,0,0,.22);
+  z-index:1240;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .2s ease;
+}
+
+.sat-backdrop.open{
+  opacity:1;
+  pointer-events:auto;
+}
+
+/* Hide legacy map overlay info (moved into panel) */
+#info{ display:none; }
+
+/* Keep Leaflet controls above map chrome */
+.leaflet-top,
+.leaflet-bottom{
+  z-index:1400;
 }
 
 /* ---------- Mobile layout ---------- */
 @media (max-width: 600px){
   :root{
     --appbar-h:60px;
-    --leaflet-control-gap:0px;
   }
 
   #sat-panel{
@@ -412,19 +400,21 @@ tbody tr.selected{ background:#e8f0fe; }
     width:auto;
     top:auto;
     bottom:10px;
-    max-height:70vh;
+    height:min(72vh, 520px);
     border-radius:16px;
+    border-left:none;
+    box-shadow:0 -10px 28px rgba(0,0,0,.20);
+    transform:translateY(calc(100% + 20px));
   }
 
-  .panel-toggle{ display:grid; }
-  #sat-panel.collapsed{ max-height:56px; }
-  #sat-panel.collapsed .panel-body{ display:none; }
+  #sat-panel.open{
+    transform:translateY(0);
+  }
+
+  .sat-backdrop{
+    top:var(--appbar-h);
+  }
+
   .search-container{ height:40px; }
   .icon-btn{ width:40px; height:40px; }
-}
-
-/* ✅ FINAL FIX: ensure Leaflet controls render above app UI */
-.leaflet-top,
-.leaflet-bottom{
-  z-index:1400;
 }

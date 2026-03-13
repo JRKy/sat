@@ -36,9 +36,10 @@ const searchInput = document.getElementById("search");
 const geoBtn = document.getElementById("geo");
 const autocomplete = document.getElementById("autocomplete");
 
+const satToggleBtn = document.getElementById("sat-toggle");
 const satPanel = document.getElementById("sat-panel");
-const panelToggleBtn = document.getElementById("panel-toggle");
-const panelToggleIcon = document.getElementById("panel-toggle-icon");
+const panelCloseBtn = document.getElementById("panel-close");
+const satBackdrop = document.getElementById("sat-backdrop");
 
 const satTable = document.getElementById("sat-table");
 const sortSelect = document.getElementById("sort");
@@ -47,29 +48,60 @@ const cutoffSlider = document.getElementById("cutoff");
 const cutoffValue = document.getElementById("cutoff-value");
 const cutoffHintValue = document.getElementById("cutoff-hint-value");
 
+const observerInfo = document.getElementById("observer-info");
+const selectedInfo = document.getElementById("selected-info");
+
+/* Legacy */
 const info = document.getElementById("info");
 
 /* ============================
    Constants / State
 ============================ */
 
-const DEFAULT_SAT_LAT = 0;         // degrees
-const DEFAULT_SAT_ALT_KM = 35786;  // km (GEO approx)
+const DEFAULT_SAT_LAT = 0;        // degrees
+const DEFAULT_SAT_ALT_KM = 35786; // km (GEO approx)
 
-const MIN_VISIBLE_EL = 0;          // degrees
-const MIN_USABLE_EL = 10;          // degrees
+const MIN_VISIBLE_EL = 0;         // degrees
+const MIN_USABLE_EL = 10;         // degrees
 
 const GREAT_CIRCLE_STEPS = 64;
 
 let satellites = [];
 let satMarkers = new Map(); // name -> L.Marker
-let lineLayers = [];        // L.Polyline array (recreated each update)
+let lineLayers = [];
 
 let sortMode = "lon";
 let elevationCutoff = 0;
 let selectedSatName = null;
 
 let lastObserver = { lat: 39.0, lon: -104.0, heightKm: 2.3 };
+
+/* ============================
+   Panel Toggle (Step 3 wiring)
+============================ */
+
+function openPanel() {
+  satPanel.classList.add("open");
+  satBackdrop.classList.add("open");
+}
+
+function closePanel() {
+  satPanel.classList.remove("open");
+  satBackdrop.classList.remove("open");
+}
+
+function togglePanel() {
+  if (satPanel.classList.contains("open")) closePanel();
+  else openPanel();
+}
+
+satToggleBtn?.addEventListener("click", togglePanel);
+panelCloseBtn?.addEventListener("click", closePanel);
+satBackdrop?.addEventListener("click", closePanel);
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closePanel();
+});
 
 /* ============================
    Icons (Material Icons)
@@ -148,7 +180,6 @@ function greatCirclePoints(lat1, lon1, lat2, lon2, steps = GREAT_CIRCLE_STEPS) {
 ============================ */
 
 function addSatelliteMarkers() {
-  // clear old
   for (const [, m] of satMarkers) map.removeLayer(m);
   satMarkers.clear();
 
@@ -157,14 +188,13 @@ function addSatelliteMarkers() {
       icon: satIcon(selectedSatName === sat.name)
     }).addTo(map);
 
-    // Better-looking tooltip with a hard break and spacing above the icon
     marker.bindTooltip(
       `<span class="name">${sat.name}</span><span class="lon">${sat.lon.toFixed(1)}°</span>`,
       {
         permanent: true,
         direction: "top",
         className: "sat-label",
-        offset: [0, -24] // gives breathing room above the icon
+        offset: [0, -24]
       }
     ).openTooltip();
 
@@ -174,11 +204,6 @@ function addSatelliteMarkers() {
   refreshMarkerSelection();
 }
 
-/**
- * IMPORTANT FIX:
- * Leaflet markers don't support bringToFront().
- * Use z-index offset instead.
- */
 function refreshMarkerSelection() {
   for (const sat of satellites) {
     const marker = satMarkers.get(sat.name);
@@ -186,8 +211,6 @@ function refreshMarkerSelection() {
 
     const isSelected = selectedSatName === sat.name;
     marker.setIcon(satIcon(isSelected));
-
-    // ✅ correct way to "bring forward" a Marker
     marker.setZIndexOffset(isSelected ? 1000 : 0);
   }
 }
@@ -217,7 +240,7 @@ function buildTable(rows) {
     return;
   }
 
-  const html = `
+  satTable.innerHTML = `
     <table>
       <thead>
         <tr>
@@ -243,17 +266,44 @@ function buildTable(rows) {
     </table>
   `;
 
-  satTable.innerHTML = html;
-
-  // Click row → select
   satTable.querySelectorAll("tr[data-sat]").forEach((row) => {
     row.addEventListener("click", () => {
       const name = row.getAttribute("data-sat");
       selectedSatName = (selectedSatName === name) ? null : name;
       refreshMarkerSelection();
       updateLocation(lastObserver.lat, lastObserver.lon, lastObserver.heightKm, false);
+      openPanel(); // keep panel open while working
     });
   });
+}
+
+/* ============================
+   Panel info renderers
+============================ */
+
+function renderObserverInfo(lat, lon, heightKm) {
+  if (!observerInfo) return;
+  observerInfo.innerHTML = `
+    <div><b>Lat:</b> ${lat.toFixed(5)}°</div>
+    <div><b>Lon:</b> ${lon.toFixed(5)}°</div>
+    <div class="muted">${heightKm ? `Height: ${heightKm.toFixed(2)} km` : ""}</div>
+  `;
+}
+
+function renderSelectedInfo(selectedRow) {
+  if (!selectedInfo) return;
+
+  if (!selectedRow) {
+    selectedInfo.innerHTML = `<div class="muted">None (tap a row)</div>`;
+    return;
+  }
+
+  selectedInfo.innerHTML = `
+    <div><b>${selectedRow.sat.name}</b></div>
+    <div>Az: ${selectedRow.az.toFixed(1)}°</div>
+    <div>El: ${selectedRow.el.toFixed(1)}°</div>
+    <div class="muted">${selectedRow.status}</div>
+  `;
 }
 
 /* ============================
@@ -284,33 +334,29 @@ function updateLocation(lat, lon, heightKm = 0, setZoom = false) {
     const look = satellite.ecfToLookAngles(observerGd, positionEcf);
     const az = normAzDeg(radToDeg(look.azimuth));
     const el = radToDeg(look.elevation);
-
     const status = el > MIN_USABLE_EL ? "Good" : (el > MIN_VISIBLE_EL ? "Low" : "Bad");
+
     return { sat, az, el, status };
   });
 
-  // Sort
   computed.sort((a, b) => {
     if (sortMode === "el") return (b.el - a.el) || (a.sat.lon - b.sat.lon);
     return (a.sat.lon - b.sat.lon) || a.sat.name.localeCompare(b.sat.name);
   });
 
-  // Filter by cutoff
   const filtered = computed.filter(r => r.el >= elevationCutoff);
 
-  // Clear selection if it falls out of filter
   if (selectedSatName && !filtered.some(r => r.sat.name === selectedSatName)) {
     selectedSatName = null;
     refreshMarkerSelection();
   }
 
-  // Draw lines only if above horizon AND above cutoff
   filtered.forEach((r) => {
     if (r.el <= 0) return; // behind Earth → no line on 2D map
 
     const isSelected = (selectedSatName === r.sat.name);
-
     const pts = greatCirclePoints(lat, lon, r.sat.lat ?? 0, r.sat.lon);
+
     const line = L.polyline(pts, {
       color: r.el > MIN_USABLE_EL ? "#1e8e3e" : "#1a73e8",
       weight: isSelected ? 5 : 3,
@@ -318,42 +364,34 @@ function updateLocation(lat, lon, heightKm = 0, setZoom = false) {
       dashArray: r.el > MIN_USABLE_EL ? null : "5,5"
     }).addTo(map);
 
-    if (isSelected) line.bringToFront(); // ✅ valid on polylines
+    if (isSelected) line.bringToFront();
     lineLayers.push(line);
   });
 
   buildTable(filtered);
 
-  const selected = selectedSatName ? computed.find(r => r.sat.name === selectedSatName) : null;
+  const selectedRow = selectedSatName ? computed.find(r => r.sat.name === selectedSatName) : null;
 
-  // Bottom-left info (lat/lon always visible)
-  info.innerHTML = `
-    <div><b>Observer:</b> ${lat.toFixed(5)}°, ${lon.toFixed(5)}°</div>
-    <div><b>Cutoff:</b> El ≥ ${elevationCutoff}° (lines only if El > 0°)</div>
-    <div><b>Selected:</b> ${
-      selected
-        ? `${selected.sat.name} — Az ${selected.az.toFixed(1)}°, El ${selected.el.toFixed(1)}° (${selected.status})`
-        : "none (tap a row)"
-    }</div>
-  `;
+  renderObserverInfo(lat, lon, heightKm);
+  renderSelectedInfo(selectedRow);
+
+  // Legacy info overlay is retired
+  if (info) info.innerHTML = "";
 }
 
 /* ============================
    Events
 ============================ */
 
-// map click to reposition observer
 map.on("click", (e) => {
   updateLocation(e.latlng.lat, e.latlng.lng, lastObserver.heightKm, false);
 });
 
-// sort
 sortSelect.addEventListener("change", () => {
   sortMode = sortSelect.value;
   updateLocation(lastObserver.lat, lastObserver.lon, lastObserver.heightKm, false);
 });
 
-// elevation cutoff
 cutoffSlider.addEventListener("input", () => {
   elevationCutoff = parseFloat(cutoffSlider.value);
   cutoffValue.textContent = elevationCutoff.toFixed(0);
@@ -361,7 +399,6 @@ cutoffSlider.addEventListener("input", () => {
   updateLocation(lastObserver.lat, lastObserver.lon, lastObserver.heightKm, false);
 });
 
-// current location (user gesture)
 geoBtn.addEventListener("click", () => {
   if (!navigator.geolocation) return;
   navigator.geolocation.getCurrentPosition((pos) => {
@@ -372,12 +409,6 @@ geoBtn.addEventListener("click", () => {
       true
     );
   });
-});
-
-// mobile panel collapse
-panelToggleBtn?.addEventListener("click", () => {
-  const collapsed = satPanel.classList.toggle("collapsed");
-  panelToggleIcon.textContent = collapsed ? "expand_less" : "expand_more";
 });
 
 /* ============================
@@ -426,7 +457,6 @@ function renderAutocomplete(items) {
 
   autocomplete.querySelectorAll(".autocomplete-item").forEach((el) => {
     el.addEventListener("mousedown", (ev) => {
-      // mousedown fires before blur
       ev.preventDefault();
       const idx = parseInt(el.getAttribute("data-idx"), 10);
       chooseAutocomplete(idx);
@@ -452,7 +482,6 @@ function chooseAutocomplete(idx) {
 
   searchInput.value = p.display_name || searchInput.value;
   hideAutocomplete();
-
   updateLocation(parseFloat(p.lat), parseFloat(p.lon), lastObserver.heightKm, true);
 }
 
@@ -520,23 +549,22 @@ fetch("satellites.json")
     updateLocation(lastObserver.lat, lastObserver.lon, lastObserver.heightKm, true);
   });
 
-/**
- * Optional: reduce Chrome's "geolocation must be user gesture" warning.
- * Only auto-request location if permission is already granted.
- */
+/* Optional: reduce Chrome geolocation warning by only auto-requesting if already granted */
 if (navigator.permissions && navigator.geolocation) {
-  navigator.permissions.query({ name: "geolocation" }).then((perm) => {
-    if (perm.state === "granted") {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => updateLocation(
-          pos.coords.latitude,
-          pos.coords.longitude,
-          (pos.coords.altitude ?? 0) / 1000,
-          true
-        ),
-        () => {},
-        { enableHighAccuracy: true, timeout: 5000 }
-      );
-    }
-  }).catch(() => {});
+  navigator.permissions.query({ name: "geolocation" })
+    .then((perm) => {
+      if (perm.state === "granted") {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => updateLocation(
+            pos.coords.latitude,
+            pos.coords.longitude,
+            (pos.coords.altitude ?? 0) / 1000,
+            true
+          ),
+          () => {},
+          { enableHighAccuracy: true, timeout: 5000 }
+        );
+      }
+    })
+    .catch(() => {});
 }
