@@ -3,10 +3,12 @@
 ============================ */
 const map = L.map('map', {
   zoomControl: true,
-  attributionControl: true, // Leaflet attribution ON (default bottom-right)
-  minZoom: 3,
-  maxZoom: 19
-}).setView([39.0, -104.0], 4);
+  attributionControl: true,
+  minZoom: 1,
+  maxZoom: 19,
+  worldCopyJump: false,
+  continuousWorld: false
+});
 
 const baseLayers = {
   "Streets": L.tileLayer(
