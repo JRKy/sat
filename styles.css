@@ -9,3 +9,8 @@ body { margin:0; height:100vh; font-family:sans-serif; }
 table { border-collapse:collapse; }
 th, td { padding:4px 8px; text-align:left; border-bottom:1px solid #ddd; }
 th { background:#eee; }
+.sat-marker { font-size: 24px; text-align: center; }
+.sat-label {
+  background: #000c; color: #fff; border: none; padding: 4px 8px;
+  font-size: 11px; opacity: 0.9; pointer-events: none;
+}
