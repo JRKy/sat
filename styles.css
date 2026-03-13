@@ -50,9 +50,25 @@ body{
 .app-left{
   display:flex;
   align-items:center;
-  gap:10px;
+  gap:12px;
   width:100%;
   max-width:980px;
+}
+
+/* ---------- Logo ---------- */
+.app-logo{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:36px;
+  height:36px;
+  flex:0 0 auto;
+}
+
+.app-logo img{
+  width:36px;
+  height:36px;
+  display:block;
 }
 
 /* ---------- Search ---------- */
@@ -258,7 +274,7 @@ body{
   flex-direction:column;
 }
 
-/* ---------- Panel Info Row (Observer + Selection) ---------- */
+/* ---------- Panel Info Row ---------- */
 .panel-info-row{
   display:grid;
   grid-template-columns:1fr 1fr;

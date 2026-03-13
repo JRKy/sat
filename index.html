@@ -6,17 +6,17 @@
   <title>Satellite Antenna Tracker</title>
 
   <!-- Favicons -->
-  <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="icon" href="favicon.ico" sizes="any">
+  favicon.svg
+  favicon.ico
 
   <!-- Leaflet -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"/>
+  https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css
 
   <!-- Google Material Icons -->
-  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons"/>
+  https://fonts.googleapis.com/icon?family=Material+Icons
 
   <!-- App styles -->
-  <link rel="stylesheet" href="styles.css"/>
+  styles.css
 </head>
 <body>
 
@@ -24,11 +24,17 @@
   <header id="app-bar">
     <div class="app-left">
 
+      <!-- ✅ Logo -->
+      <div class="app-logo" title="Satellite Antenna Tracker">
+        <img src="logo.svg" alt="Satellite Antenna Tracker logo" />
+      </div>
+
       <div class="search-wrap">
         <div class="search-container" title="Search location">
           <span class="material-icons">search</span>
           <input id="search" type="text" placeholder="Search location" autocomplete="off" />
         </div>
+
         <div id="autocomplete"
              class="autocomplete hidden"
              role="listbox"
@@ -75,7 +81,6 @@
           </select>
         </label>
 
-        <!-- ✅ Pin panel -->
         <button id="panel-pin"
                 class="icon-btn"
                 title="Pin panel"
@@ -94,7 +99,6 @@
 
     <div class="panel-body">
 
-      <!-- Combined Observer + Selection row -->
       <section class="panel-info-row">
         <div class="info-card">
           <div class="section-title">Observer</div>
@@ -111,7 +115,6 @@
         </div>
       </section>
 
-      <!-- Cutoff -->
       <section class="panel-section">
         <div class="cutoff-row">
           <span class="cutoff-label">Elevation cutoff</span>
@@ -139,9 +142,9 @@
   <div id="info"></div>
 
   <!-- JS -->
-  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/satellite.js@6.0.2/dist/satellite.min.js"></script>
-  <script src="app.js"></script>
+  https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.jsscript>
+  https://cdn.jsdelivr.net/npm/satellite.js@6.0.2/dist/satellite.min.jsscript>
+  app.jsscript>
 
 </body>
 </html>
