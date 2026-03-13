@@ -8,4 +8,3 @@
   { "name": "MUOS-4", "lon": 75,   "lat": 0, "alt_km": 35786, "type": "GEO" },
   { "name": "ALT-4",  "lon": 170,  "lat": 0, "alt_km": 35786, "type": "GEO" }
 ]
-``
