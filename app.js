@@ -18,7 +18,7 @@ const baseLayers = {
   })
 };
 
-baseLayers["Satellite"].addTo(map);  // default to Satellite
+baseLayers["Streets"].addTo(map);  // default to Streets
 
 L.control.layers(baseLayers, null, { position: 'topright' }).addTo(map);
 
