@@ -36,16 +36,23 @@ const geoBtn = document.getElementById('geo');
 const satTable = document.getElementById('sat-table');
 const suggestions = document.getElementById('suggestions');
 
-const satellites = [
-  { name: 'MUOS-2', lon: -177 },
-  { name: 'MUOS-5', lon: -100 },
-  { name: 'MUOS-3', lon: -15.5 },
-  { name: 'MUOS-4', lon: 75 },
-  { name: 'ALT-2',  lon: -127 },
-  { name: 'ALT-3',  lon: -24  },
-  { name: 'ALT-1',  lon: 110  },
-  { name: 'ALT-4',  lon: 170  }
-];
+let satellites = [];
+
+fetch('satellites.json')
+  .then(res => res.json())
+  .then(data => {
+    satellites = data;
+    addSatelliteMarkers();
+    // Trigger initial update after load
+    updateLocation(39.0, -104.0, 2.3, true);
+  })
+  .catch(err => {
+    console.error('Failed to load satellites:', err);
+    // Fallback
+    satellites = [{ name: 'Fallback', lon: -104 }];
+    addSatelliteMarkers();
+    updateLocation(39.0, -104.0, 2.3, true);
+  });
 
 const userMarker = L.marker([0, 0]).addTo(map);
 const lines = [];
@@ -75,8 +82,6 @@ function addSatelliteMarkers() {
     satMarkers.push(marker);
   });
 }
-
-addSatelliteMarkers();
 
 function updateLocation(lat, lon, height = 0, setZoom = false) {
   userMarker.setLatLng([lat, lon]);
