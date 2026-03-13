@@ -12,5 +12,5 @@ table { border-collapse:collapse; width:100%; }
 th, td { padding:6px 8px; text-align:left; border-bottom:1px solid #eee; }
 th { background:#f8f9fa; font-weight:500; }
 .leaflet-tooltip.sat-label { background:#202124e6; color:#fff; border:none; padding:4px 8px; font-size:11px; border-radius:4px; pointer-events:none; }
-.user-marker { font-size:40px; color:#1a73e8; text-shadow:0 2px 6px #0006; line-height:1; }
-.sat-marker { font-size:32px; color:#d93025; text-shadow:0 2px 4px #0006; line-height:1; }
+.user-marker { font-size:40px; color:#1a73e8; text-shadow:0 2px 6px #0006; line-height:1; text-align:center; }
+.sat-marker { font-size:32px; color:#d93025; text-shadow:0 2px 4px #0006; line-height:1; text-align:center; }

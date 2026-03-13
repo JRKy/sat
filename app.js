@@ -57,7 +57,7 @@ const userMarker = L.marker([0, 0], {
     className: 'user-marker',
     html: '<span class="material-icons">location_on</span>',
     iconSize: [40, 40],
-    iconAnchor: [20, 40]
+    iconAnchor: [20, 40]  // bottom-center alignment
   })
 }).addTo(map);
 
