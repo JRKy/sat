@@ -15,10 +15,20 @@
       <input id="search" list="suggestions" type="text" placeholder="Search location" autocomplete="off">
     </div>
     <datalist id="suggestions"></datalist>
+
     <button id="geo" title="My Location">
       <span class="material-icons">my_location</span>
     </button>
+
+    <div class="select-container" title="Sort satellites">
+      <span class="material-icons select-icon">sort</span>
+      <select id="sort">
+        <option value="lon" selected>Longitude</option>
+        <option value="el">Elevation</option>
+      </select>
+    </div>
   </div>
+
   <div id="sat-table"></div>
   <div id="map"></div>
   <div id="info"></div>
