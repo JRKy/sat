@@ -99,8 +99,12 @@ searchInput.addEventListener('input', () => {
           opt.value = place.display_name;
           suggestions.appendChild(opt);
         });
-      });
-  }, 300);
+        searchInput.focus();
+        searchInput.blur();
+        searchInput.focus();
+      })
+      .catch(err => console.error('Nominatim error:', err));
+  }, 400);
 });
 
 searchInput.addEventListener('change', () => {
@@ -114,8 +118,6 @@ searchInput.addEventListener('change', () => {
       }
     });
 });
-
-// Rest unchanged...
 
 map.on('click', e => updateLocation(e.latlng.lat, e.latlng.lng));
 
