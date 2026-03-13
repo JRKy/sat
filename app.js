@@ -3,10 +3,22 @@
 ============================ */
 const map = L.map('map', {
   zoomControl: true,
-  attributionControl: true, // Leaflet attribution ON (default bottom-right)
-  minZoom: 3,
-  maxZoom: 19
-}).setView([39.0, -104.0], 4);
+  attributionControl: true,
+  minZoom: 1,          // ✅ allow zooming out far enough to see whole world
+  maxZoom: 19,
+  worldCopyJump: false,
+  continuousWorld: false
+}).setView([0, 0], 2); // ✅ neutral global start
+
+const WORLD_BOUNDS = L.latLngBounds(
+  L.latLng(-90, -180),
+  L.latLng(90, 180)
+);
+
+map.setMaxBounds(WORLD_BOUNDS);
+map.on('drag', () => {
+  map.panInsideBounds(WORLD_BOUNDS, { animate: false });
+});
 
 const baseLayers = {
   "Streets": L.tileLayer(
