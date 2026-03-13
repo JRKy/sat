@@ -41,14 +41,12 @@ let satellites = [];
 fetch('satellites.json')
   .then(res => res.json())
   .then(data => {
-    satellites = data;
+    satellites = data.sort((a, b) => a.lon - b.lon);
     addSatelliteMarkers();
-    // Trigger initial update after load
     updateLocation(39.0, -104.0, 2.3, true);
   })
   .catch(err => {
     console.error('Failed to load satellites:', err);
-    // Fallback
     satellites = [{ name: 'Fallback', lon: -104 }];
     addSatelliteMarkers();
     updateLocation(39.0, -104.0, 2.3, true);
