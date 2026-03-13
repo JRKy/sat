@@ -73,7 +73,7 @@ let lineLayers = [];
 let sortMode = "lon";
 let elevationCutoff = 0;
 
-// ✅ Multi-select state (replaces single selectedSatName)
+// ✅ Multi-select state
 let selectedSatNames = new Set();
 
 let lastObserver = { lat: 39.0, lon: -104.0, heightKm: 2.3 };
@@ -109,8 +109,9 @@ if (footprintToggle) {
 }
 
 /* ============================
- Multiple Footprints (selected satellites)
- - respects cutoff + toggle
+ TRUE Footprints (Boundary Polygons)
+ - Uses the PDF boundary point method (azimuth sweep)
+ - Removes elevationCutoff influence from footprint geometry
 ============================ */
 const FOOTPRINT_COLORS = [
   "#1a73e8", // blue
@@ -121,7 +122,8 @@ const FOOTPRINT_COLORS = [
   "#00acc1"  // cyan
 ];
 
-let footprintLayers = new Map(); // satName -> L.Circle
+// satName -> Leaflet Layer (polygon / multipolygon)
+let footprintLayers = new Map();
 
 function clearFootprints() {
   for (const [, layer] of footprintLayers) {
@@ -130,23 +132,136 @@ function clearFootprints() {
   footprintLayers.clear();
 }
 
-function footprintRadiusKmForSatellite(sat) {
-  const satAltKm = sat.alt_km ?? DEFAULT_SAT_ALT_KM;
+function toRad(deg) { return deg * Math.PI / 180; }
+function toDeg(rad) { return rad * 180 / Math.PI; }
+
+function normalizeLon180(lon) {
+  // normalize to [-180, 180]
+  let x = ((lon + 180) % 360 + 360) % 360 - 180;
+  // avoid -180 when we really mean +180 for continuity
+  if (x === -180) x = 180;
+  return x;
+}
+
+/**
+ * Split a ring at the dateline to avoid Leaflet drawing the long way around.
+ * Returns array of rings (each ring is array of [lat, lon]).
+ */
+function splitRingAtDateline(points) {
+  if (!points || points.length < 2) return [points];
+
+  const rings = [];
+  let ring = [points[0]];
+
+  for (let i = 1; i < points.length; i++) {
+    const [lat1, lon1] = points[i - 1];
+    const [lat2, lon2] = points[i];
+
+    const d = lon2 - lon1;
+
+    // Detect wrap across ±180
+    if (Math.abs(d) > 180) {
+      // We crossed the dateline between i-1 and i.
+      // Use an unwrapped lon2 to interpolate crossing at ±180.
+      let lon2u = lon2;
+      let crossLonA, crossLonB;
+
+      if (lon1 > 0 && lon2 < 0) {
+        // +179 -> -179 : treat lon2 as +181
+        lon2u = lon2 + 360;
+        crossLonA = 180;
+        crossLonB = -180;
+      } else if (lon1 < 0 && lon2 > 0) {
+        // -179 -> +179 : treat lon2 as -181
+        lon2u = lon2 - 360;
+        crossLonA = -180;
+        crossLonB = 180;
+      } else {
+        // Fallback: shouldn't happen often, but keep safe
+        crossLonA = (lon1 > 0) ? 180 : -180;
+        crossLonB = -crossLonA;
+      }
+
+      const t = (crossLonA - lon1) / (lon2u - lon1);
+      const latCross = lat1 + t * (lat2 - lat1);
+
+      // Close current ring at dateline
+      ring.push([latCross, crossLonA]);
+      rings.push(ring);
+
+      // Start new ring from opposite dateline
+      ring = [];
+      ring.push([latCross, crossLonB]);
+      ring.push([lat2, lon2]);
+    } else {
+      ring.push([lat2, lon2]);
+    }
+  }
+
+  if (ring.length) rings.push(ring);
+  return rings;
+}
+
+/**
+ * Compute the angular radius p (radians) to the horizon for a sat altitude.
+ * p = acos(Re / (Re + h))  [from your PDF]
+ */
+function horizonAngularRadiusRad(altKm) {
   const Re = EARTH_RADIUS_KM;
-  const r = Re + satAltKm;
-  const k = Re / r;
+  const r = Re + altKm;
+  return Math.acos(Re / r);
+}
 
-  const e = (elevationCutoff || 0) * Math.PI / 180;
-  const arg = k * Math.cos(e);
+/**
+ * Generate footprint boundary points.
+ * Uses PDF’s special-case equations for GEO (lat0=0) and general spherical-circle form otherwise.
+ *
+ * PDF (lat0=0):
+ *   lat = asin(sin(p) * cos(a))
+ *   lon = lon0 + atan2(sin(a) * sin(p), cos(p))
+ */
+function footprintBoundaryPoints(sat, steps = 360) {
+  const lon0 = toRad(sat.lon);
+  const lat0 = toRad((sat.lat ?? DEFAULT_SAT_LAT));
 
-  if (!isFinite(arg)) return null;
-  if (arg >= 1) return null;
-  if (arg <= -1) return null;
+  const altKm = sat.alt_km ?? DEFAULT_SAT_ALT_KM;
+  const p = horizonAngularRadiusRad(altKm); // radians
 
-  const psi = Math.acos(arg) - e;
-  if (!isFinite(psi) || psi <= 0) return null;
+  const sinp = Math.sin(p);
+  const cosp = Math.cos(p);
 
-  return Re * psi;
+  const pts = [];
+
+  // step azimuth a from 0..2π
+  for (let i = 0; i <= steps; i++) {
+    const a = (i / steps) * 2 * Math.PI;
+
+    let lat, lon;
+
+    // If near-equatorial, use the exact PDF form
+    if (Math.abs(lat0) < 1e-9) {
+      lat = Math.asin(sinp * Math.cos(a));
+      lon = lon0 + Math.atan2(Math.sin(a) * sinp, cosp);
+    } else {
+      // Robust general spherical-circle form (keeps behavior intact if sat.lat ever differs)
+      // lat = asin( sin(lat0)*cos(p) + cos(lat0)*sin(p)*cos(a) )
+      // lon = lon0 + atan2( sin(a)*sin(p)*cos(lat0), cos(p) - sin(lat0)*sin(lat) )
+      const sinLat0 = Math.sin(lat0);
+      const cosLat0 = Math.cos(lat0);
+      lat = Math.asin(sinLat0 * cosp + cosLat0 * sinp * Math.cos(a));
+      lon = lon0 + Math.atan2(
+        Math.sin(a) * sinp * cosLat0,
+        cosp - sinLat0 * Math.sin(lat)
+      );
+    }
+
+    const latDeg = toDeg(lat);
+    const lonDeg = normalizeLon180(toDeg(lon));
+
+    pts.push([latDeg, lonDeg]);
+  }
+
+  return pts;
 }
 
 function updateFootprints() {
@@ -155,21 +270,27 @@ function updateFootprints() {
   if (!footprintEnabled) return;
   if (!selectedSatNames.size) return;
 
-  // draw footprints for selected satellites that exist in the satellites list
-  const selected = satellites.filter(s => selectedSatNames.has(s.name));
+  // Stable ordering so colors don't shuffle randomly
+  const selected = satellites
+    .filter(s => selectedSatNames.has(s.name))
+    .sort((a, b) => (a.lon - b.lon) || a.name.localeCompare(b.name));
 
   selected.forEach((sat, idx) => {
-    const radiusKm = footprintRadiusKmForSatellite(sat);
-    if (!radiusKm) return;
-
-    const satLat = sat.lat ?? DEFAULT_SAT_LAT;
-    const satLon = sat.lon;
-
     const color = FOOTPRINT_COLORS[idx % FOOTPRINT_COLORS.length];
 
-    const layer = L.circle([satLat, satLon], {
+    const boundary = footprintBoundaryPoints(sat, 360);
+
+    // Split at dateline so Leaflet doesn't draw across the globe
+    const rings = splitRingAtDateline(boundary)
+      .filter(r => r.length >= 3);
+
+    if (!rings.length) return;
+
+    // Leaflet multipolygon format: [ [ring1], [ring2], ... ]
+    const multi = rings.map(r => [r]);
+
+    const poly = L.polygon(multi, {
       pane: FOOTPRINT_PANE,
-      radius: radiusKm * 1000,
       color,
       weight: 2,
       opacity: 0.85,
@@ -178,7 +299,7 @@ function updateFootprints() {
       interactive: false
     }).addTo(map);
 
-    footprintLayers.set(sat.name, layer);
+    footprintLayers.set(sat.name, poly);
   });
 }
 
@@ -421,7 +542,7 @@ function buildTable(rows) {
     row.addEventListener("click", () => {
       const name = row.getAttribute("data-sat");
 
-      // ✅ Toggle membership for multi-select
+      // Multi-select toggle
       if (selectedSatNames.has(name)) selectedSatNames.delete(name);
       else selectedSatNames.add(name);
 
@@ -509,7 +630,7 @@ function updateLocation(lat, lon, heightKm = 0, setZoom = false) {
 
   const filtered = computed.filter(r => r.el >= elevationCutoff);
 
-  // If selected satellites fall out of cutoff filter, unselect them (matches previous behavior)
+  // Drop selections that no longer meet cutoff filter (keeps existing behavior intact)
   const filteredNames = new Set(filtered.map(r => r.sat.name));
   let changed = false;
   for (const name of Array.from(selectedSatNames)) {
@@ -521,7 +642,7 @@ function updateLocation(lat, lon, heightKm = 0, setZoom = false) {
   if (changed) refreshMarkerSelection();
 
   filtered.forEach((r) => {
-    if (r.el <= 0) return; // behind Earth → no line on 2D map
+    if (r.el <= 0) return;
 
     const isSelected = selectedSatNames.has(r.sat.name);
     const pts = greatCirclePoints(lat, lon, r.sat.lat ?? 0, r.sat.lon);
@@ -544,7 +665,7 @@ function updateLocation(lat, lon, heightKm = 0, setZoom = false) {
   renderObserverInfo(lat, lon, heightKm);
   renderSelectedInfo(selectedRows);
 
-  // ✅ Multiple footprints for multi-selected satellites
+  // ✅ True footprints are independent of elevation cutoff now
   updateFootprints();
 
   if (info) info.innerHTML = "";
