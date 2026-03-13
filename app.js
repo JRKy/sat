@@ -105,10 +105,10 @@ let footprintEnabled = safeGetFootprintFromStorage();
 if (footprintToggle) footprintToggle.checked = footprintEnabled;
 
 /* ============================
- Antimeridian-safe geometry helper (UNIFIED + HARDENED)
- - Works for polylines and polygon rings
- - Prevents zig/zag by keeping each segment in a consistent lon "zone"
+ Shared Antimeridian Helpers (UNIFIED)
 ============================ */
+const EPS = 1e-9;
+
 function normalizeLon180(lon) {
   // normalize to (-180, 180], keep 180 not -180 for continuity
   let x = ((lon + 180) % 360 + 360) % 360 - 180;
@@ -116,148 +116,252 @@ function normalizeLon180(lon) {
   return x;
 }
 
-function unwrapLon(prevUnwrapped, lonNorm) {
-  // choose lonNorm + 360k that minimizes jump
+function unwrapLon(prevU, lonNorm) {
+  // choose lonNorm + 360k that minimizes jump from prevU
   let best = lonNorm;
-  let bestDiff = Math.abs(best - prevUnwrapped);
+  let bestDiff = Math.abs(best - prevU);
 
   const c1 = lonNorm + 360;
-  const d1 = Math.abs(c1 - prevUnwrapped);
+  const d1 = Math.abs(c1 - prevU);
   if (d1 < bestDiff) { best = c1; bestDiff = d1; }
 
   const c2 = lonNorm - 360;
-  const d2 = Math.abs(c2 - prevUnwrapped);
+  const d2 = Math.abs(c2 - prevU);
   if (d2 < bestDiff) { best = c2; bestDiff = d2; }
 
   return best;
 }
 
 /**
- * Splits a path at the antimeridian and outputs segments that do NOT zig/zag.
- * Key improvement vs naive splitting:
- * - Track a "zone index" z such that output lon = unwrappedLon - 360*z
- *   keeps all lons within one consistent [-180,180] neighborhood per segment.
- *
- * @param {Array<[number,number]>} pts array of [lat, lonDeg] (lon may be any real number)
- * @param {Object} opts {closed:boolean}
- * @returns {Array<Array<[number,number]>>} segments (polyline) or rings (polygon)
+ * Build an unwrapped lon series from raw lon values.
+ * Input pts can have lon outside [-180,180] already; we normalize then unwrap.
  */
-function splitAtAntimeridian(pts, opts = {}) {
-  const closed = !!opts.closed;
-  const EPS = 1e-9;
+function buildUnwrappedSeries(pts) {
+  const out = [];
+  if (!pts.length) return out;
+  const lon0n = normalizeLon180(pts[0][1]);
+  out.push(lon0n);
+  for (let i = 1; i < pts.length; i++) {
+    const lonn = normalizeLon180(pts[i][1]);
+    out.push(unwrapLon(out[i - 1], lonn));
+  }
+  return out;
+}
 
+/**
+ * Split an OPEN polyline at antimeridian.
+ * Returns segments with lons normalized to [-180,180] and NO zig/zag.
+ */
+function splitPolylineAtDateline(pts) {
   if (!Array.isArray(pts) || pts.length < 2) return [];
 
-  // Clean: drop invalid + consecutive duplicates (after normalization for comparison)
+  // remove consecutive duplicates after lon normalization for stability
   const cleaned = [];
   for (const p of pts) {
     if (!p || p.length < 2) continue;
     const lat = +p[0];
-    const lonRaw = +p[1];
-    const lonNorm = normalizeLon180(lonRaw);
-
+    const lon = +p[1];
+    const lonN = normalizeLon180(lon);
     const prev = cleaned[cleaned.length - 1];
-    if (!prev || prev.lat !== lat || prev.lonNorm !== lonNorm) {
-      cleaned.push({ lat, lonRaw, lonNorm });
-    }
+    if (!prev || prev[0] !== lat || normalizeLon180(prev[1]) !== lonN) cleaned.push([lat, lon]);
   }
   if (cleaned.length < 2) return [];
 
-  // If closed ring, ensure closure by repeating first point if necessary
-  let work = cleaned;
-  if (closed) {
-    const f = work[0];
-    const l = work[work.length - 1];
-    if (f.lat !== l.lat || f.lonNorm !== l.lonNorm) {
-      work = work.concat([{ lat: f.lat, lonRaw: f.lonRaw, lonNorm: f.lonNorm }]);
-    }
-  }
-
-  // Build continuous unwrapped longitude series
-  const unwrapped = new Array(work.length);
-  unwrapped[0] = work[0].lonNorm; // start in normalized space
-  for (let i = 1; i < work.length; i++) {
-    // Use normalized target but unwrap relative to previous unwrapped
-    unwrapped[i] = unwrapLon(unwrapped[i - 1], work[i].lonNorm);
-  }
-
-  // helper to map an unwrapped lon to a stable [-180,180] lon for a given zone z
-  function lonForZone(lonU, z) {
-    // convert from unwrapped to this zone
-    const lonZ = lonU - 360 * z;
-    return normalizeLon180(lonZ);
-  }
+  const U = buildUnwrappedSeries(cleaned);
 
   const segments = [];
-  let zCurr = Math.floor((unwrapped[0] + 180) / 360);
-  let seg = [[work[0].lat, lonForZone(unwrapped[0], zCurr)]];
+  let seg = [[cleaned[0][0], normalizeLon180(cleaned[0][1])]];
+  let zCurr = Math.floor((U[0] + 180) / 360);
 
-  for (let i = 1; i < work.length; i++) {
-    let lat1 = work[i - 1].lat;
-    let lat2 = work[i].lat;
+  function lonInZone(lonU, z) {
+    return normalizeLon180(lonU - 360 * z);
+  }
 
-    let lon1u = unwrapped[i - 1];
-    let lon2u = unwrapped[i];
+  for (let i = 1; i < cleaned.length; i++) {
+    let lat1 = cleaned[i - 1][0];
+    let lon1u = U[i - 1];
+    let lat2 = cleaned[i][0];
+    let lon2u = U[i];
 
     let z1 = Math.floor((lon1u + 180) / 360);
     let z2 = Math.floor((lon2u + 180) / 360);
 
-    // Step through potentially multiple boundary crossings
     while (z1 !== z2) {
-      // boundary between z1 and z1+1 is at lon = 180 + 360*z1 (for increasing),
-      // or lon = -180 + 360*z1 (for decreasing). Using 180+360*z1 works with our zone definition.
       const boundary = 180 + 360 * Math.min(z1, z2);
-      const denom = (lon2u - lon1u);
+      const denom = lon2u - lon1u;
       if (Math.abs(denom) < EPS) break;
 
       const t = (boundary - lon1u) / denom;
-      const latCross = lat1 + t * (lat2 - lat1);
+      const latX = lat1 + t * (lat2 - lat1);
 
-      // End current segment at boundary on current zone side
-      seg.push([latCross, lonForZone(boundary, zCurr)]);
+      // end segment on current zone at dateline
+      seg.push([latX, lonInZone(boundary, zCurr)]);
       segments.push(seg);
 
-      // Start new segment at the opposite dateline for the new zone
-      // Update zone current to the new zone
-      if (z2 > z1) zCurr = zCurr + 1;
-      else zCurr = zCurr - 1;
+      // advance zone
+      zCurr += (z2 > z1) ? 1 : -1;
 
-      // new segment begins at boundary mapped to new zone side
-      const boundaryNewSide = (lonForZone(boundary, zCurr) === 180) ? -180 : 180;
-      seg = [[latCross, boundaryNewSide]];
+      // start new segment on opposite dateline
+      const startLon = (lonInZone(boundary, zCurr) === 180) ? -180 : 180;
+      seg = [[latX, startLon]];
 
-      // Continue from intersection point
-      lon1u = boundary + (z2 > z1 ? EPS : -EPS);
-      lat1 = latCross;
+      // continue
+      lon1u = boundary + ((z2 > z1) ? EPS : -EPS);
+      lat1 = latX;
       z1 = Math.floor((lon1u + 180) / 360);
     }
 
-    // add endpoint in current zone
-    seg.push([lat2, lonForZone(lon2u, zCurr)]);
+    seg.push([lat2, lonInZone(lon2u, zCurr)]);
   }
 
   if (seg.length >= 2) segments.push(seg);
 
-  if (closed) {
-    // Turn segments into valid closed rings
-    const rings = [];
-    for (const s of segments) {
-      // remove tiny rings
-      if (s.length < 3) continue;
-      const f = s[0];
-      const l = s[s.length - 1];
-      if (f[0] !== l[0] || f[1] !== l[1]) s.push([f[0], f[1]]);
-      if (s.length >= 4) rings.push(s);
-    }
-    return rings;
+  // filter tiny segments
+  return segments.filter(s => s.length >= 2);
+}
+
+/**
+ * Split a CLOSED ring into one or more CLOSED rings by cutting at dateline,
+ * then close each resulting ring by drawing straight along ±180 (meridian seam).
+ *
+ * This matches your proposal:
+ * - draw one half up to +180, close along +180
+ * - draw the other half up to -180, close along -180
+ *
+ * Returns array of rings (each closed).
+ */
+function splitRingIntoDatelinePolygons(ringPts) {
+  if (!Array.isArray(ringPts) || ringPts.length < 4) return [];
+
+  // Ensure input is closed
+  const pts = ringPts.slice();
+  const f = pts[0];
+  const l = pts[pts.length - 1];
+  if (f[0] !== l[0] || normalizeLon180(f[1]) !== normalizeLon180(l[1])) {
+    pts.push([f[0], f[1]]);
   }
 
-  return segments.filter(s => s.length >= 2);
+  // Remove consecutive duplicates (after normalized lon check)
+  const cleaned = [];
+  for (const p of pts) {
+    if (!p || p.length < 2) continue;
+    const lat = +p[0];
+    const lon = +p[1];
+    const lonN = normalizeLon180(lon);
+    const prev = cleaned[cleaned.length - 1];
+    if (!prev || prev[0] !== lat || normalizeLon180(prev[1]) !== lonN) cleaned.push([lat, lon]);
+  }
+  if (cleaned.length < 4) return [];
+
+  const U = buildUnwrappedSeries(cleaned);
+
+  // Collect segments (open) in different zones, with explicit boundary points inserted.
+  const segments = [];
+  let seg = [[cleaned[0][0], normalizeLon180(cleaned[0][1])]];
+  let zCurr = Math.floor((U[0] + 180) / 360);
+
+  function lonInZone(lonU, z) {
+    return normalizeLon180(lonU - 360 * z);
+  }
+
+  for (let i = 1; i < cleaned.length; i++) {
+    let lat1 = cleaned[i - 1][0];
+    let lon1u = U[i - 1];
+    let lat2 = cleaned[i][0];
+    let lon2u = U[i];
+
+    let z1 = Math.floor((lon1u + 180) / 360);
+    let z2 = Math.floor((lon2u + 180) / 360);
+
+    while (z1 !== z2) {
+      const boundary = 180 + 360 * Math.min(z1, z2);
+      const denom = lon2u - lon1u;
+      if (Math.abs(denom) < EPS) break;
+
+      const t = (boundary - lon1u) / denom;
+      const latX = lat1 + t * (lat2 - lat1);
+
+      // end segment on current zone at dateline
+      seg.push([latX, lonInZone(boundary, zCurr)]);
+      segments.push({ zone: zCurr, pts: seg });
+
+      // advance zone
+      zCurr += (z2 > z1) ? 1 : -1;
+
+      // start new segment on opposite dateline
+      const startLon = (lonInZone(boundary, zCurr) === 180) ? -180 : 180;
+      seg = [[latX, startLon]];
+
+      // continue
+      lon1u = boundary + ((z2 > z1) ? EPS : -EPS);
+      lat1 = latX;
+      z1 = Math.floor((lon1u + 180) / 360);
+    }
+
+    seg.push([lat2, lonInZone(lon2u, zCurr)]);
+  }
+
+  if (seg.length >= 2) segments.push({ zone: zCurr, pts: seg });
+
+  // Now convert each segment into a closed ring by adding a seam along the dateline.
+  // Determine which dateline side to close on (+180 or -180) by average lon sign.
+  const rings = [];
+
+  for (const s of segments) {
+    const p = s.pts;
+    if (p.length < 3) continue;
+
+    // Decide seam lon: if most points are near +180 => seam=+180 else seam=-180
+    let sum = 0;
+    for (const q of p) sum += q[1];
+    const seamLon = (sum / p.length) >= 0 ? 180 : -180;
+
+    const first = p[0];
+    const last = p[p.length - 1];
+
+    const ring = p.slice();
+
+    // Clamp endpoints to seamLon (prevents tiny slants)
+    ring[0] = [first[0], seamLon];
+    ring[ring.length - 1] = [last[0], seamLon];
+
+    // Add vertical seam back to start latitude
+    ring.push([first[0], seamLon]);
+
+    // Close ring
+    if (ring[0][0] !== ring[ring.length - 1][0] || ring[0][1] !== ring[ring.length - 1][1]) {
+      ring.push([ring[0][0], ring[0][1]]);
+    }
+
+    if (ring.length >= 4) rings.push(ring);
+  }
+
+  // If we never crossed dateline, we likely got one segment that is basically the whole ring.
+  // In that case, keep original ring closed & normalized to avoid seam artifacts.
+  if (rings.length === 1) {
+    // Check if original ring had no large jump; if so, just return a clean normalized ring
+    let hasJump = false;
+    for (let i = 1; i < cleaned.length; i++) {
+      const a = normalizeLon180(cleaned[i - 1][1]);
+      const b = normalizeLon180(cleaned[i][1]);
+      if (Math.abs(b - a) > 180) { hasJump = true; break; }
+    }
+    if (!hasJump) {
+      const normRing = cleaned.map(([lat, lon]) => [lat, normalizeLon180(lon)]);
+      // ensure closed
+      const ff = normRing[0];
+      const ll = normRing[normRing.length - 1];
+      if (ff[0] !== ll[0] || ff[1] !== ll[1]) normRing.push([ff[0], ff[1]]);
+      return [normRing];
+    }
+  }
+
+  return rings;
 }
 
 /* ============================
  TRUE Footprints (Boundary Polygons)
- - Uses PDF boundary point method (azimuth sweep)
+ - Uses PDF boundary method (azimuth sweep)
  - Footprints are true geometric visibility (NOT affected by elevationCutoff)
 ============================ */
 const FOOTPRINT_COLORS = [
@@ -284,7 +388,7 @@ function toDeg(rad) { return rad * 180 / Math.PI; }
 function horizonAngularRadiusRad(altKm) {
   const Re = EARTH_RADIUS_KM;
   const r = Re + altKm;
-  return Math.acos(Re / r); // p = acos(Re/(Re+h)) [1](https://onedrive.live.com?cid=14B45517F25E7A7A&id=14B45517F25E7A7A!sbd7d18d56e74449ea0f0e51bcf49a997)
+  return Math.acos(Re / r);
 }
 
 function footprintBoundaryPoints(sat, steps = 360) {
@@ -304,13 +408,10 @@ function footprintBoundaryPoints(sat, steps = 360) {
     let lat, lon;
 
     // PDF equatorial GEO form:
-    // lat = asin(sin(p)*cos(a))
-    // lon = lon0 + atan2(sin(a)*sin(p), cos(p)) [1](https://onedrive.live.com?cid=14B45517F25E7A7A&id=14B45517F25E7A7A!sbd7d18d56e74449ea0f0e51bcf49a997)
     if (Math.abs(lat0) < 1e-12) {
       lat = Math.asin(sinp * Math.cos(a));
       lon = lon0 + Math.atan2(Math.sin(a) * sinp, cosp);
     } else {
-      // general spherical-circle form (robust for non-equatorial)
       const sinLat0 = Math.sin(lat0);
       const cosLat0 = Math.cos(lat0);
       lat = Math.asin(sinLat0 * cosp + cosLat0 * sinp * Math.cos(a));
@@ -321,11 +422,15 @@ function footprintBoundaryPoints(sat, steps = 360) {
     }
 
     const latDeg = toDeg(lat);
-
-    // IMPORTANT: do NOT normalize here (prevents sawtooth near dateline)
-    const lonDegRaw = toDeg(lon);
-
+    const lonDegRaw = toDeg(lon); // keep raw; splitter will handle
     pts.push([latDeg, lonDegRaw]);
+  }
+
+  // Ensure closed
+  const first = pts[0];
+  const last = pts[pts.length - 1];
+  if (first[0] !== last[0] || normalizeLon180(first[1]) !== normalizeLon180(last[1])) {
+    pts.push([first[0], first[1]]);
   }
 
   return pts;
@@ -337,17 +442,17 @@ function updateFootprints() {
   if (!footprintEnabled) return;
   if (!selectedSatNames.size) return;
 
+  // Stable ordering so colors don't shuffle
   const selected = satellites
     .filter(s => selectedSatNames.has(s.name))
     .sort((a, b) => (a.lon - b.lon) || a.name.localeCompare(b.name));
 
   selected.forEach((sat, idx) => {
     const color = FOOTPRINT_COLORS[idx % FOOTPRINT_COLORS.length];
-
     const boundary = footprintBoundaryPoints(sat, 360);
 
-    // Use unified hardened splitter for rings
-    const rings = splitAtAntimeridian(boundary, { closed: true });
+    // ✅ Cut into two polygons (or one) and close along ±180 seam
+    const rings = splitRingIntoDatelinePolygons(boundary);
 
     if (!rings.length) return;
 
@@ -485,7 +590,7 @@ function greatCirclePoints(lat1, lon1, lat2, lon2, steps = GREAT_CIRCLE_STEPS) {
     const z = a*v1[2] + b*v2[2];
     pts.push([
       radToDeg(Math.atan2(z, Math.sqrt(x*x + y*y))),
-      radToDeg(Math.atan2(y, x)) // returns [-180,180]
+      radToDeg(Math.atan2(y, x))
     ]);
   }
   return pts;
@@ -544,10 +649,10 @@ function statusClass(status) {
 }
 
 function addWrappedPolyline(latlngs, options, bringFront = false) {
-  const segs = splitAtAntimeridian(latlngs, { closed: false });
+  const segs = splitPolylineAtDateline(latlngs);
   const layers = [];
   for (const s of segs) {
-    const pl = L.polyline(s, options).addTo(map);
+    const pl = L.polyline(s.map(([lat, lon]) => [lat, normalizeLon180(lon)]), options).addTo(map);
     if (bringFront) pl.bringToFront();
     layers.push(pl);
   }
@@ -704,7 +809,6 @@ function updateLocation(lat, lon, heightKm = 0, setZoom = false) {
       dashArray: r.el > MIN_USABLE_EL ? null : "5,5"
     };
 
-    // Antimeridian-safe polylines
     const segLayers = addWrappedPolyline(pts, options, isSelected);
     lineLayers.push(...segLayers);
   });
@@ -716,7 +820,6 @@ function updateLocation(lat, lon, heightKm = 0, setZoom = false) {
   renderObserverInfo(lat, lon, heightKm);
   renderSelectedInfo(selectedRows);
 
-  // True footprints (independent of elevationCutoff)
   updateFootprints();
 
   if (info) info.innerHTML = "";
