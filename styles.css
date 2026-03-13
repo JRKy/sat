@@ -15,6 +15,9 @@
   --shadow-soft:0 4px 14px rgba(0,0,0,.12);
 
   --appbar-h:64px;
+
+  /* ✅ NEW: reserve space for Leaflet layer/zoom controls */
+  --leaflet-control-gap:56px;
 }
 
 *{ box-sizing:border-box; }
@@ -166,10 +169,14 @@ body{
 /* ---------- Satellite Panel ---------- */
 #sat-panel{
   position:fixed;
-  top:calc(var(--appbar-h) + 12px);
+
+  /* ✅ CHANGED: pushed below Leaflet controls */
+  top:calc(var(--appbar-h) + var(--leaflet-control-gap) + 12px);
   right:12px;
+
   width:320px;
-  max-height:calc(100vh - var(--appbar-h) - 24px);
+  max-height:calc(100vh - var(--appbar-h) - var(--leaflet-control-gap) - 24px);
+
   background:var(--card);
   border:1px solid var(--border);
   border-radius:var(--radius);
@@ -323,11 +330,12 @@ tbody tr.selected{ background:#e8f0fe; }
   border:1px solid var(--border);
   background:#fff;
 }
+
 .status-good{ color:var(--good); border-color:rgba(30,142,62,.25); background:rgba(30,142,62,.06); }
 .status-low{ color:var(--low); border-color:rgba(26,115,232,.25); background:rgba(26,115,232,.06); }
 .status-bad{ color:var(--bad); border-color:rgba(217,48,37,.25); background:rgba(217,48,37,.06); }
 
-/* ---------- Leaflet Tooltip Labels (improved spacing/feel) ---------- */
+/* ---------- Leaflet Tooltip Labels ---------- */
 .leaflet-tooltip.sat-label{
   background:rgba(32,33,36,.92);
   color:#fff;
@@ -393,9 +401,14 @@ tbody tr.selected{ background:#e8f0fe; }
   max-width:min(560px, calc(100vw - 24px));
 }
 
-/* ---------- Mobile layout: bottom sheet ---------- */
+/* ---------- Mobile layout ---------- */
 @media (max-width: 600px){
-  :root{ --appbar-h:60px; }
+  :root{
+    --appbar-h:60px;
+
+    /* ✅ no Leaflet overlap issue on mobile */
+    --leaflet-control-gap:0px;
+  }
 
   #sat-panel{
     left:10px;
@@ -408,7 +421,6 @@ tbody tr.selected{ background:#e8f0fe; }
   }
 
   .panel-toggle{ display:grid; }
-
   #sat-panel.collapsed{ max-height:56px; }
   #sat-panel.collapsed .panel-body{ display:none; }
 
