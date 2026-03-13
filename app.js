@@ -37,11 +37,14 @@ const satTable = document.getElementById('sat-table');
 const suggestions = document.getElementById('suggestions');
 
 const satellites = [
-  { name: 'MUOS-1', lon: -100 },
   { name: 'MUOS-2', lon: -177 },
-  { name: 'MUOS-3', lon: -16 },
+  { name: 'MUOS-5', lon: -100 },
+  { name: 'MUOS-3', lon: -15.5 },
   { name: 'MUOS-4', lon: 75 },
-  { name: 'MUOS-5', lon: -105 }
+  { name: 'ALT-2',  lon: -127 },
+  { name: 'ALT-3',  lon: -24  },
+  { name: 'ALT-1',  lon: 110  },
+  { name: 'ALT-4',  lon: 170  }
 ];
 
 const userMarker = L.marker([0, 0]).addTo(map);
