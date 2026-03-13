@@ -4,16 +4,36 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Satellite Antenna Tracker</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"/>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons"/>
-  <link rel="stylesheet" href="styles.css"/>
+
+  <!-- Leaflet -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"
+  />
+
+  <!-- Google Material Icons -->
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/icon?family=Material+Icons"
+  />
+
+  <!-- App styles -->
+  <link rel="stylesheet" href="styles.css" />
 </head>
+
 <body>
   <div id="controls">
     <div class="search-container">
       <span class="material-icons search-icon">search</span>
-      <input id="search" list="suggestions" type="text" placeholder="Search location" autocomplete="off">
+      <input
+        id="search"
+        list="suggestions"
+        type="text"
+        placeholder="Search location"
+        autocomplete="off"
+      />
     </div>
+
     <datalist id="suggestions"></datalist>
 
     <button id="geo" title="My Location">
@@ -33,6 +53,7 @@
   <div id="map"></div>
   <div id="info"></div>
 
+  <!-- JS -->
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/satellite.js@6.0.2/dist/satellite.min.js"></script>
   <script src="app.js"></script>
