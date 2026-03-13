@@ -1,3 +1,7 @@
+/* ============================
+   Map Initialization
+============================ */
+
 const map = L.map('map', {
   zoomControl: true,
   attributionControl: false,
@@ -6,6 +10,10 @@ const map = L.map('map', {
 }).setView([39.0, -104.0], 4);
 
 const baseLayers = {
+  "Streets": L.tileLayer(
+    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    { attribution: '© OpenStreetMap contributors', maxZoom: 19 }
+  ),
   "Satellite": L.tileLayer(
     'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
     { attribution: 'Tiles © Esri', maxZoom: 19 }
@@ -13,14 +21,6 @@ const baseLayers = {
   "Dark": L.tileLayer(
     'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
     { attribution: '© OpenStreetMap & Carto', maxZoom: 19 }
-  ),
-  "Streets": L.tileLayer(
-    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    { attribution: '© OpenStreetMap contributors', maxZoom: 19 }
-  ),
-  "Terrain": L.tileLayer(
-    'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
-    { attribution: 'Map data: © OpenTopoMap (CC-BY-SA)', maxZoom: 17 }
   )
 };
 
@@ -28,11 +28,20 @@ baseLayers["Streets"].addTo(map);
 L.control.layers(baseLayers, null, { position: 'topright' }).addTo(map);
 L.control.scale({ imperial: true, metric: true, position: 'bottomright' }).addTo(map);
 
-const info = document.getElementById('info');
+/* ============================
+   DOM References
+============================ */
+
 const searchInput = document.getElementById('search');
 const geoBtn = document.getElementById('geo');
 const satTable = document.getElementById('sat-table');
+const sortSelect = document.getElementById('sort');
+const info = document.getElementById('info');
 const suggestions = document.getElementById('suggestions');
+
+/* ============================
+   Constants / State
+============================ */
 
 const DEFAULT_SAT_LAT = 0;
 const DEFAULT_SAT_ALT_KM = 35786;
@@ -40,10 +49,16 @@ const MIN_VISIBLE_EL = 0;
 const MIN_USABLE_EL = 10;
 const GREAT_CIRCLE_STEPS = 64;
 
-let satellitesRaw = [];
+let satellites = [];
 let satMarkers = [];
 let lines = [];
+
+let sortMode = 'lon';
 let lastObserver = { lat: 39.0, lon: -104.0, heightKm: 2.3 };
+
+/* ============================
+   User Marker
+============================ */
 
 const userMarker = L.marker([0, 0], {
   icon: L.divIcon({
@@ -54,9 +69,17 @@ const userMarker = L.marker([0, 0], {
   })
 }).addTo(map);
 
-function degToRad(d) { return d * Math.PI / 180; }
-function radToDeg(r) { return r * 180 / Math.PI; }
-function normAzDeg(d) { return (d % 360 + 360) % 360; }
+/* ============================
+   Math Helpers
+============================ */
+
+const degToRad = d => d * Math.PI / 180;
+const radToDeg = r => r * 180 / Math.PI;
+const normAzDeg = d => (d % 360 + 360) % 360;
+
+/* ============================
+   Great-Circle Path (visual only)
+============================ */
 
 function greatCirclePoints(lat1, lon1, lat2, lon2, steps = GREAT_CIRCLE_STEPS) {
   const φ1 = degToRad(lat1), λ1 = degToRad(lon1);
@@ -89,11 +112,15 @@ function greatCirclePoints(lat1, lon1, lat2, lon2, steps = GREAT_CIRCLE_STEPS) {
   return pts;
 }
 
+/* ============================
+   Satellite Markers
+============================ */
+
 function addSatelliteMarkers() {
   satMarkers.forEach(m => map.removeLayer(m));
   satMarkers = [];
 
-  satellitesRaw.forEach(sat => {
+  satellites.forEach(sat => {
     const marker = L.marker([sat.lat ?? DEFAULT_SAT_LAT, sat.lon], {
       icon: L.divIcon({
         className: 'sat-marker',
@@ -103,19 +130,28 @@ function addSatelliteMarkers() {
       })
     }).addTo(map);
 
-    marker.bindTooltip(`${sat.name}\n${sat.lon.toFixed(1)}°`, {
-      permanent: true,
-      direction: 'top',
-      className: 'sat-label',
-      offset: [0, -10]
-    }).openTooltip();
+    marker.bindTooltip(
+      `<span class="name">${sat.name}</span>
+       <span class="lon">${sat.lon.toFixed(1)}°</span>`,
+      {
+        permanent: true,
+        direction: 'top',
+        className: 'sat-label',
+        offset: [0, -10]
+      }
+    ).openTooltip();
 
     satMarkers.push(marker);
   });
 }
 
+/* ============================
+   Core Update Logic
+============================ */
+
 function updateLocation(lat, lon, heightKm = 0, setZoom = false) {
   lastObserver = { lat, lon, heightKm };
+
   userMarker.setLatLng([lat, lon]);
   if (setZoom) map.setView([lat, lon], 12);
 
@@ -128,10 +164,9 @@ function updateLocation(lat, lon, heightKm = 0, setZoom = false) {
     height: heightKm
   };
 
-  let html = `<table>
-<tr><th>Satellite</th><th>Az</th><th>El</th><th>Status</th></tr>`;
+  let rows = [];
 
-  satellitesRaw.forEach(sat => {
+  satellites.forEach(sat => {
     const positionEcf = satellite.geodeticToEcf({
       longitude: satellite.degreesToRadians(sat.lon),
       latitude: satellite.degreesToRadians(sat.lat ?? DEFAULT_SAT_LAT),
@@ -143,34 +178,63 @@ function updateLocation(lat, lon, heightKm = 0, setZoom = false) {
     const el = radToDeg(look.elevation);
 
     const status = el > MIN_USABLE_EL ? 'Good' : (el > 0 ? 'Low' : 'Bad');
-    const color = el > MIN_USABLE_EL ? 'green' : (el > 0 ? 'blue' : 'red');
-    const dash = el > MIN_USABLE_EL ? null : '5,5';
 
-    html += `<tr><td>${sat.name}</td><td>${az.toFixed(1)}°</td><td>${el.toFixed(1)}°</td><td>${status}</td></tr>`;
+    rows.push({ sat, az, el, status });
 
     if (el > 0) {
       const pts = greatCirclePoints(lat, lon, sat.lat ?? 0, sat.lon);
-      lines.push(L.polyline(pts, {
-        color, weight: 3, opacity: 0.7, dashArray: dash
-      }).addTo(map));
+      lines.push(
+        L.polyline(pts, {
+          color: el > MIN_USABLE_EL ? 'green' : 'blue',
+          weight: 3,
+          opacity: 0.7,
+          dashArray: el > MIN_USABLE_EL ? null : '5,5'
+        }).addTo(map)
+      );
     }
   });
 
-  satTable.innerHTML = html + '</table>';
-  info.innerHTML = `<b>Observer:</b> ${lat.toFixed(4)}°, ${lon.toFixed(4)}° — click map to reposition`;
+  rows.sort((a, b) =>
+    sortMode === 'el' ? b.el - a.el : a.sat.lon - b.sat.lon
+  );
+
+  satTable.innerHTML = `
+    <table>
+      <tr>
+        <th>Satellite</th>
+        <th>Az</th>
+        <th>El</th>
+        <th>Status</th>
+      </tr>
+      ${rows.map(r => `
+        <tr>
+          <td>${r.sat.name}</td>
+          <td>${r.az.toFixed(1)}°</td>
+          <td>${r.el.toFixed(1)}°</td>
+          <td>${r.status}</td>
+        </tr>
+      `).join('')}
+    </table>
+  `;
+
+  info.innerHTML = `
+    <b>Observer:</b>
+    ${lat.toFixed(4)}°, ${lon.toFixed(4)}°
+    — click map to reposition
+  `;
 }
 
-fetch('satellites.json')
-  .then(r => r.json())
-  .then(d => {
-    satellitesRaw = d;
-    addSatelliteMarkers();
-    updateLocation(lastObserver.lat, lastObserver.lon, lastObserver.heightKm, true);
-  });
+/* ============================
+   Event Wiring
+============================ */
 
-/* ✅ RESTORED: click anywhere on map to set observer */
 map.on('click', e => {
   updateLocation(e.latlng.lat, e.latlng.lng, lastObserver.heightKm, false);
+});
+
+sortSelect.addEventListener('change', () => {
+  sortMode = sortSelect.value;
+  updateLocation(lastObserver.lat, lastObserver.lon, lastObserver.heightKm, false);
 });
 
 geoBtn.addEventListener('click', () => {
@@ -184,3 +248,15 @@ geoBtn.addEventListener('click', () => {
     );
   });
 });
+
+/* ============================
+   Load Satellites + Init
+============================ */
+
+fetch('satellites.json')
+  .then(r => r.json())
+  .then(data => {
+    satellites = data;
+    addSatelliteMarkers();
+    updateLocation(lastObserver.lat, lastObserver.lon, lastObserver.heightKm, true);
+  });
