@@ -5,55 +5,44 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Satellite Antenna Tracker</title>
 
-  <!-- Leaflet -->
-  <link
-    rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"
-  />
-
-  <!-- Google Material Icons -->
-  <link
-    rel="stylesheet"
-    href="https://fonts.googleapis.com/icon?family=Material+Icons"
-  />
-
-  <!-- App styles -->
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons"/>
+  <link rel="stylesheet" href="styles.css"/>
 </head>
-
 <body>
-  <div id="controls">
-    <div class="search-container">
-      <span class="material-icons search-icon">search</span>
-      <input
-        id="search"
-        list="suggestions"
-        type="text"
-        placeholder="Search location"
-        autocomplete="off"
-      />
+
+  <!-- Top App Bar -->
+  <header id="app-bar">
+    <div class="app-group left">
+      <div class="search-container">
+        <span class="material-icons">search</span>
+        <input id="search" list="suggestions" type="text" placeholder="Search location" autocomplete="off">
+      </div>
+
+      <button id="geo" title="Use current location">
+        <span class="material-icons">my_location</span>
+      </button>
     </div>
+  </header>
 
-    <datalist id="suggestions"></datalist>
+  <datalist id="suggestions"></datalist>
 
-    <button id="geo" title="My Location">
-      <span class="material-icons">my_location</span>
-    </button>
+  <div id="map"></div>
 
-    <div class="select-container" title="Sort satellites">
-      <span class="material-icons select-icon">sort</span>
+  <!-- Satellite Table Card -->
+  <aside id="sat-panel">
+    <div class="panel-header">
+      <span>Satellites</span>
       <select id="sort">
-        <option value="lon" selected>Longitude</option>
+        <option value="lon">Longitude</option>
         <option value="el">Elevation</option>
       </select>
     </div>
-  </div>
+    <div id="sat-table"></div>
+  </aside>
 
-  <div id="sat-table"></div>
-  <div id="map"></div>
   <div id="info"></div>
 
-  <!-- JS -->
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/satellite.js@6.0.2/dist/satellite.min.js"></script>
   <script src="app.js"></script>
