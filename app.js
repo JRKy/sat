@@ -61,14 +61,14 @@ const info = document.getElementById("info");
  Constants / State
 ============================ */
 const EARTH_RADIUS_KM = 6371;
-const DEFAULT_SAT_LAT = 0;
-const DEFAULT_SAT_ALT_KM = 35786;
-const MIN_VISIBLE_EL = 0;
-const MIN_USABLE_EL = 10;
+const DEFAULT_SAT_LAT = 0; // degrees
+const DEFAULT_SAT_ALT_KM = 35786; // km (GEO approx)
+const MIN_VISIBLE_EL = 0; // degrees
+const MIN_USABLE_EL = 10; // degrees
 const GREAT_CIRCLE_STEPS = 64;
 
 let satellites = [];
-let satMarkers = new Map();
+let satMarkers = new Map(); // name -> L.Marker
 let lineLayers = [];
 let footprintLayer = null;
 
@@ -77,8 +77,35 @@ let elevationCutoff = 0;
 let selectedSatName = null;
 let lastObserver = { lat: 39.0, lon: -104.0, heightKm: 2.3 };
 
-let footprintEnabled = true;
-if (footprintToggle) footprintEnabled = !!footprintToggle.checked;
+/* ============================
+ Footprint toggle persistence (default OFF)
+============================ */
+const FOOTPRINT_STORAGE_KEY = "satFootprintEnabled";
+
+function safeGetFootprintFromStorage() {
+  try {
+    const v = localStorage.getItem(FOOTPRINT_STORAGE_KEY);
+    if (v === null) return false;          // ✅ default OFF if not set
+    return v === "true";
+  } catch {
+    return false;
+  }
+}
+
+function safeSetFootprintToStorage(val) {
+  try {
+    localStorage.setItem(FOOTPRINT_STORAGE_KEY, val ? "true" : "false");
+  } catch {
+    /* ignore */
+  }
+}
+
+let footprintEnabled = safeGetFootprintFromStorage();
+
+// Sync toggle UI on load
+if (footprintToggle) {
+  footprintToggle.checked = footprintEnabled;
+}
 
 /* ============================
  Selected Satellite Footprint (respects cutoff + toggle)
@@ -104,17 +131,18 @@ function updateFootprint(selectedSat) {
   const r = Re + altKm;
   const k = Re / r;
 
-  // Elevation cutoff (deg) -> radians
+  // Elevation cutoff in radians
   const e = (elevationCutoff || 0) * Math.PI / 180;
 
-  // Derivation: cos(ψ + e) = k cos(e)
+  // Geometry: cos(ψ + e) = (Re/(Re+h)) * cos(e)
   // => ψ = arccos(k cos(e)) - e
   const arg = k * Math.cos(e);
 
-  if (arg >= 1) return;           // no footprint (too strict)
-  if (arg <= -1) return;          // degenerate/unrealistic
+  if (!isFinite(arg)) return;
+  if (arg >= 1) return; // too strict -> no region
+  if (arg <= -1) return;
 
-  let psi = Math.acos(arg) - e;   // central angle in radians
+  const psi = Math.acos(arg) - e;
   if (!isFinite(psi) || psi <= 0) return;
 
   const groundRadiusKm = Re * psi;
@@ -163,6 +191,7 @@ function syncPanelPinnedUI() {
 function openPanel() {
   if (!satPanel) return;
   satPanel.classList.add("open");
+  // If pinned, do NOT enable backdrop (map must remain interactive)
   if (satBackdrop) {
     if (panelPinned) satBackdrop.classList.remove("open");
     else satBackdrop.classList.add("open");
@@ -170,35 +199,45 @@ function openPanel() {
 }
 function closePanel(force = false) {
   if (!satPanel) return;
+  // Prevent closing if pinned unless forced
   if (panelPinned && !force) return;
   satPanel.classList.remove("open");
   if (satBackdrop) satBackdrop.classList.remove("open");
 }
 function togglePanel() {
   if (!satPanel) return;
+  // If pinned and open, ignore toggle close attempts
   if (panelPinned && satPanel.classList.contains("open")) return;
   if (satPanel.classList.contains("open")) closePanel();
   else openPanel();
 }
+// Header toggle
 satToggleBtn?.addEventListener("click", togglePanel);
+// Close button: always close and unpin (intentional close)
 panelCloseBtn?.addEventListener("click", () => {
   panelPinned = false;
   syncPanelPinnedUI();
   closePanel(true);
 });
+// Backdrop click: close only if not pinned
 satBackdrop?.addEventListener("click", () => closePanel(false));
+// Pin toggle
 panelPinBtn?.addEventListener("click", () => {
   panelPinned = !panelPinned;
   syncPanelPinnedUI();
+  // Turning pin ON should keep panel visible and allow map interaction
   if (panelPinned) {
     openPanel();
   } else {
+    // If still open and unpinned, enable backdrop again for click-outside close
     if (satPanel?.classList.contains("open") && satBackdrop) satBackdrop.classList.add("open");
   }
 });
+// Esc closes only if not pinned
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closePanel(false);
 });
+// Restore pinned state on load
 syncPanelPinnedUI();
 if (panelPinned) openPanel();
 
@@ -240,15 +279,11 @@ const normAzDeg = (d) => (d % 360 + 360) % 360;
 function greatCirclePoints(lat1, lon1, lat2, lon2, steps = GREAT_CIRCLE_STEPS) {
   const φ1 = degToRad(lat1), λ1 = degToRad(lon1);
   const φ2 = degToRad(lat2), λ2 = degToRad(lon2);
-
   const v1 = [Math.cos(φ1) * Math.cos(λ1), Math.cos(φ1) * Math.sin(λ1), Math.sin(φ1)];
   const v2 = [Math.cos(φ2) * Math.cos(λ2), Math.cos(φ2) * Math.sin(λ2), Math.sin(φ2)];
-
   const dot = Math.min(1, Math.max(-1, v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2]));
   const ω = Math.acos(dot);
-
   if (!isFinite(ω) || ω === 0) return [[lat1, lon1], [lat2, lon2]];
-
   const sinω = Math.sin(ω);
   const pts = [];
   for (let i = 0; i <= steps; i++) {
@@ -490,14 +525,16 @@ geoBtn.addEventListener("click", () => {
   });
 });
 
-/* ✅ NEW: Footprint toggle wiring */
+/* Toggle footprint */
 if (footprintToggle) {
   footprintToggle.addEventListener("change", () => {
     footprintEnabled = !!footprintToggle.checked;
-    // Recompute footprint immediately based on current selection
+    safeSetFootprintToStorage(footprintEnabled);
+
     const selectedSat = selectedSatName
       ? satellites.find(s => s.name === selectedSatName)
       : null;
+
     updateFootprint(selectedSat);
   });
 }
