@@ -1,16 +1,37 @@
 body { margin:0; height:100vh; font-family:sans-serif; }
-#map { height:70vh; }
-#controls { position:absolute; top:10px; left:10px; z-index:1000; display:flex; align-items:center; gap:8px; }
-.search-container { position:relative; }
+#map { height:100vh; width:100vw; }
+#controls { 
+  position:absolute; top:10px; left:10px; z-index:1000; 
+  display:flex; flex-wrap:wrap; gap:8px; max-width:90vw; 
+}
+.search-container { position:relative; flex:1 1 220px; min-width:180px; }
 .search-icon { position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#666; pointer-events:none; font-size:20px; }
-#search { padding:10px 12px 10px 44px; border-radius:24px; border:1px solid #dadce0; width:220px; font-size:14px; box-shadow:0 1px 6px rgba(0,0,0,0.1); background:#fff; }
-#geo { width:44px; height:44px; border-radius:50%; background:#fff; border:1px solid #dadce0; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 6px rgba(0,0,0,0.2); font-size:24px; color:#1a73e8; }
+#search { 
+  width:100%; padding:10px 12px 10px 44px; border-radius:24px; 
+  border:1px solid #dadce0; font-size:14px; box-shadow:0 1px 6px rgba(0,0,0,0.1); background:#fff; 
+}
+#geo { 
+  width:44px; height:44px; border-radius:50%; background:#fff; border:1px solid #dadce0; 
+  cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 6px rgba(0,0,0,0.2); 
+  font-size:24px; color:#1a73e8; flex-shrink:0; 
+}
 #geo:hover { background:#f1f3f4; }
-#sat-table { position:absolute; top:70px; right:10px; z-index:1000; background:#fff; padding:10px; border-radius:8px; box-shadow:0 2px 12px rgba(0,0,0,0.15); font-size:13px; max-height:50vh; overflow-y:auto; max-width:280px; }
-#info { position:absolute; bottom:10px; left:10px; z-index:1000; background:#fff; padding:8px 12px; border-radius:6px; box-shadow:0 2px 8px #0003; font-size:14px; max-width:300px; }
+#sat-table { 
+  position:absolute; top:70px; right:10px; z-index:1000; background:#fff; padding:10px; 
+  border-radius:8px; box-shadow:0 2px 12px rgba(0,0,0,0.15); font-size:13px; 
+  max-height:60vh; overflow-y:auto; max-width:90vw; width:280px; 
+}
+#info { position:absolute; bottom:10px; left:10px; z-index:1000; background:#fff; padding:8px 12px; border-radius:6px; box-shadow:0 2px 8px #0003; font-size:14px; max-width:90vw; }
 table { border-collapse:collapse; width:100%; }
 th, td { padding:6px 8px; text-align:left; border-bottom:1px solid #eee; }
 th { background:#f8f9fa; font-weight:500; }
 .leaflet-tooltip.sat-label { background:#202124e6; color:#fff; border:none; padding:4px 8px; font-size:11px; border-radius:4px; pointer-events:none; }
-.user-marker { font-size: 48px; color:#1a73e8; text-shadow:0 2px 6px #0006; line-height:1; text-align:center; }
-.sat-marker { font-size: 36px; color:#d93025; text-shadow:0 2px 4px #0006; line-height:1; text-align:center; }
+.user-marker { font-size:48px; color:#1a73e8; text-shadow:0 2px 6px #0006; line-height:1; text-align:center; }
+.sat-marker { font-size:36px; color:#d93025; text-shadow:0 2px 4px #0006; line-height:1; text-align:center; }
+
+@media (max-width: 600px) {
+  #controls { flex-direction:column; align-items:stretch; top:8px; left:8px; right:8px; }
+  #search { width:100%; }
+  #geo { align-self:center; }
+  #sat-table { right:8px; left:8px; top:120px; max-height:40vh; width:auto; }
+}
