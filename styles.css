@@ -55,7 +55,7 @@ body{
   max-width:980px;
 }
 
-/* search wrap so dropdown can anchor */
+/* ---------- Search ---------- */
 .search-wrap{
   position:relative;
   flex:1 1 auto;
@@ -176,7 +176,6 @@ body{
   z-index:1250;
   display:flex;
   flex-direction:column;
-
   transform:translateX(100%);
   transition:transform .25s ease;
 }
@@ -185,6 +184,21 @@ body{
   transform:translateX(0);
 }
 
+/* ---------- Pinned state ---------- */
+#sat-panel.pinned{
+  box-shadow:-12px 0 32px rgba(0,0,0,.22);
+}
+
+#sat-panel.pinned #panel-pin{
+  background:#e8f0fe;
+  border-color:#d2e3fc;
+}
+
+#sat-panel.pinned #panel-pin .material-icons{
+  color:#1a73e8;
+}
+
+/* ---------- Panel Header ---------- */
 .panel-header{
   display:flex;
   align-items:center;
@@ -443,7 +457,7 @@ tbody tr.selected{ background:#e8f0fe; }
   pointer-events:auto;
 }
 
-/* Hide legacy map overlay info (moved into panel) */
+/* Hide legacy map overlay info */
 #info{ display:none; }
 
 /* Keep Leaflet controls above map chrome */

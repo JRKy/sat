@@ -1,7 +1,6 @@
 /* ============================
-   Map Initialization
+ Map Initialization
 ============================ */
-
 const map = L.map('map', {
   zoomControl: true,
   attributionControl: false,
@@ -29,9 +28,8 @@ L.control.layers(baseLayers, null, { position: "topright" }).addTo(map);
 L.control.scale({ imperial: true, metric: true, position: "bottomright" }).addTo(map);
 
 /* ============================
-   DOM References
+ DOM References
 ============================ */
-
 const searchInput = document.getElementById("search");
 const geoBtn = document.getElementById("geo");
 const autocomplete = document.getElementById("autocomplete");
@@ -39,6 +37,7 @@ const autocomplete = document.getElementById("autocomplete");
 const satToggleBtn = document.getElementById("sat-toggle");
 const satPanel = document.getElementById("sat-panel");
 const panelCloseBtn = document.getElementById("panel-close");
+const panelPinBtn = document.getElementById("panel-pin");
 const satBackdrop = document.getElementById("sat-backdrop");
 
 const satTable = document.getElementById("sat-table");
@@ -55,9 +54,8 @@ const selectedInfo = document.getElementById("selected-info");
 const info = document.getElementById("info");
 
 /* ============================
-   Constants / State
+ Constants / State
 ============================ */
-
 const DEFAULT_SAT_LAT = 0;        // degrees
 const DEFAULT_SAT_ALT_KM = 35786; // km (GEO approx)
 
@@ -77,36 +75,81 @@ let selectedSatName = null;
 let lastObserver = { lat: 39.0, lon: -104.0, heightKm: 2.3 };
 
 /* ============================
-   Panel Toggle (Step 3 wiring)
+ Panel Toggle + Pin
 ============================ */
+let panelPinned = false;
 
-function openPanel() {
-  satPanel.classList.add("open");
-  satBackdrop.classList.add("open");
+function syncPanelPinnedClass() {
+  if (!satPanel) return;
+  satPanel.classList.toggle("pinned", panelPinned);
 }
 
-function closePanel() {
+function openPanel() {
+  if (!satPanel) return;
+  satPanel.classList.add("open");
+
+  // If pinned, do NOT enable backdrop (map must remain interactive)
+  if (satBackdrop) {
+    if (panelPinned) satBackdrop.classList.remove("open");
+    else satBackdrop.classList.add("open");
+  }
+}
+
+function closePanel(force = false) {
+  if (!satPanel) return;
+
+  // Prevent closing if pinned unless forced
+  if (panelPinned && !force) return;
+
   satPanel.classList.remove("open");
-  satBackdrop.classList.remove("open");
+  if (satBackdrop) satBackdrop.classList.remove("open");
 }
 
 function togglePanel() {
+  if (!satPanel) return;
+
+  // If pinned and open, ignore toggle close attempts
+  if (panelPinned && satPanel.classList.contains("open")) return;
+
   if (satPanel.classList.contains("open")) closePanel();
   else openPanel();
 }
 
+// Header toggle
 satToggleBtn?.addEventListener("click", togglePanel);
-panelCloseBtn?.addEventListener("click", closePanel);
-satBackdrop?.addEventListener("click", closePanel);
 
+// Close button: always close and unpin (intentional close)
+panelCloseBtn?.addEventListener("click", () => {
+  panelPinned = false;
+  syncPanelPinnedClass();
+  closePanel(true);
+});
+
+// Backdrop click: close only if not pinned
+satBackdrop?.addEventListener("click", () => closePanel(false));
+
+// Pin toggle
+panelPinBtn?.addEventListener("click", () => {
+  panelPinned = !panelPinned;
+  syncPanelPinnedClass();
+
+  // Turning pin ON should keep panel visible and allow map interaction
+  if (panelPinned) {
+    openPanel();
+  } else {
+    // If still open and unpinned, enable backdrop again for click-outside close
+    if (satPanel?.classList.contains("open") && satBackdrop) satBackdrop.classList.add("open");
+  }
+});
+
+// Esc closes only if not pinned
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") closePanel();
+  if (e.key === "Escape") closePanel(false);
 });
 
 /* ============================
-   Icons (Material Icons)
+ Icons (Material Icons)
 ============================ */
-
 function userIcon() {
   return L.divIcon({
     className: "user-marker",
@@ -115,7 +158,6 @@ function userIcon() {
     iconAnchor: [24, 48]
   });
 }
-
 function satIcon(isSelected) {
   return L.divIcon({
     className: isSelected ? "sat-marker selected" : "sat-marker",
@@ -126,23 +168,20 @@ function satIcon(isSelected) {
 }
 
 /* ============================
-   User Marker
+ User Marker
 ============================ */
-
 const userMarker = L.marker([0, 0], { icon: userIcon() }).addTo(map);
 
 /* ============================
-   Math Helpers
+ Math Helpers
 ============================ */
-
 const degToRad = (d) => d * Math.PI / 180;
 const radToDeg = (r) => r * 180 / Math.PI;
 const normAzDeg = (d) => (d % 360 + 360) % 360;
 
 /* ============================
-   Great-Circle Path (visual only)
+ Great-Circle Path (visual only)
 ============================ */
-
 function greatCirclePoints(lat1, lon1, lat2, lon2, steps = GREAT_CIRCLE_STEPS) {
   const φ1 = degToRad(lat1), λ1 = degToRad(lon1);
   const φ2 = degToRad(lat2), λ2 = degToRad(lon2);
@@ -176,9 +215,8 @@ function greatCirclePoints(lat1, lon1, lat2, lon2, steps = GREAT_CIRCLE_STEPS) {
 }
 
 /* ============================
-   Satellite Markers
+ Satellite Markers
 ============================ */
-
 function addSatelliteMarkers() {
   for (const [, m] of satMarkers) map.removeLayer(m);
   satMarkers.clear();
@@ -216,9 +254,8 @@ function refreshMarkerSelection() {
 }
 
 /* ============================
-   Lines / Table helpers
+ Lines / Table helpers
 ============================ */
-
 function clearLines() {
   lineLayers.forEach((l) => map.removeLayer(l));
   lineLayers = [];
@@ -272,15 +309,16 @@ function buildTable(rows) {
       selectedSatName = (selectedSatName === name) ? null : name;
       refreshMarkerSelection();
       updateLocation(lastObserver.lat, lastObserver.lon, lastObserver.heightKm, false);
-      openPanel(); // keep panel open while working
+
+      // Keep panel open while working; if pinned, leave as-is; if not pinned, still open.
+      openPanel();
     });
   });
 }
 
 /* ============================
-   Panel info renderers
+ Panel info renderers
 ============================ */
-
 function renderObserverInfo(lat, lon, heightKm) {
   if (!observerInfo) return;
   observerInfo.innerHTML = `
@@ -307,9 +345,8 @@ function renderSelectedInfo(selectedRow) {
 }
 
 /* ============================
-   Core Update Logic
+ Core Update Logic
 ============================ */
-
 function updateLocation(lat, lon, heightKm = 0, setZoom = false) {
   lastObserver = { lat, lon, heightKm };
 
@@ -371,7 +408,6 @@ function updateLocation(lat, lon, heightKm = 0, setZoom = false) {
   buildTable(filtered);
 
   const selectedRow = selectedSatName ? computed.find(r => r.sat.name === selectedSatName) : null;
-
   renderObserverInfo(lat, lon, heightKm);
   renderSelectedInfo(selectedRow);
 
@@ -380,9 +416,8 @@ function updateLocation(lat, lon, heightKm = 0, setZoom = false) {
 }
 
 /* ============================
-   Events
+ Events
 ============================ */
-
 map.on("click", (e) => {
   updateLocation(e.latlng.lat, e.latlng.lng, lastObserver.heightKm, false);
 });
@@ -412,9 +447,8 @@ geoBtn.addEventListener("click", () => {
 });
 
 /* ============================
-   Custom Autocomplete (robust)
+ Custom Autocomplete (robust)
 ============================ */
-
 let acItems = [];
 let acActiveIndex = -1;
 let acTimer = null;
@@ -429,7 +463,6 @@ function hideAutocomplete() {
 
 function renderAutocomplete(items) {
   if (!autocomplete) return;
-
   acItems = items;
   acActiveIndex = -1;
 
@@ -527,14 +560,12 @@ document.addEventListener("click", (e) => {
 });
 
 /* ============================
-   Load Satellites + Init
+ Load Satellites + Init
 ============================ */
-
 fetch("satellites.json")
   .then(r => r.json())
   .then(data => {
     satellites = Array.isArray(data) ? data : [];
-
     elevationCutoff = parseFloat(cutoffSlider.value);
     cutoffValue.textContent = elevationCutoff.toFixed(0);
     cutoffHintValue.textContent = elevationCutoff.toFixed(0);

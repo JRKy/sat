@@ -18,7 +18,6 @@
   <!-- App styles -->
   <link rel="stylesheet" href="styles.css"/>
 </head>
-
 <body>
 
   <!-- Top App Bar -->
@@ -30,7 +29,6 @@
           <span class="material-icons">search</span>
           <input id="search" type="text" placeholder="Search location" autocomplete="off" />
         </div>
-
         <div id="autocomplete"
              class="autocomplete hidden"
              role="listbox"
@@ -62,7 +60,6 @@
 
   <!-- Satellite Panel -->
   <aside id="sat-panel" aria-label="Satellite panel">
-
     <div class="panel-header">
       <div class="panel-title">
         <span class="material-icons">satellite_alt</span>
@@ -78,6 +75,14 @@
           </select>
         </label>
 
+        <!-- ✅ Pin panel -->
+        <button id="panel-pin"
+                class="icon-btn"
+                title="Pin panel"
+                aria-label="Pin panel">
+          <span class="material-icons">push_pin</span>
+        </button>
+
         <button id="panel-close"
                 class="icon-btn"
                 title="Close"
@@ -89,9 +94,8 @@
 
     <div class="panel-body">
 
-      <!-- ✅ Combined Observer + Selection row -->
+      <!-- Combined Observer + Selection row -->
       <section class="panel-info-row">
-
         <div class="info-card">
           <div class="section-title">Observer</div>
           <div id="observer-info" class="section-body">
@@ -105,7 +109,6 @@
             <div class="muted">None (tap a row)</div>
           </div>
         </div>
-
       </section>
 
       <!-- Cutoff -->
@@ -129,7 +132,6 @@
       </section>
 
       <div id="sat-table"></div>
-
     </div>
   </aside>
 
