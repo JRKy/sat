@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
   <title>Satellite Antenna Tracker</title>
 
   <!-- ✅ Favicons (SVG primary, ICO fallback) -->
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="favicon.ico" sizes="any">
 
   <!-- Leaflet -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"/>
@@ -18,6 +19,7 @@
   <!-- App styles -->
   <link rel="stylesheet" href="styles.css"/>
 </head>
+
 <body>
 
   <!-- Top App Bar -->
@@ -29,11 +31,16 @@
           <input id="search" type="text" placeholder="Search location" autocomplete="off" />
         </div>
 
-        <!-- Custom autocomplete dropdown (replaces fragile datalist UX) -->
-        <div id="autocomplete" class="autocomplete hidden" role="listbox" aria-label="Location suggestions"></div>
+        <div id="autocomplete"
+             class="autocomplete hidden"
+             role="listbox"
+             aria-label="Location suggestions"></div>
       </div>
 
-      <button id="geo" class="icon-btn" title="Use current location" aria-label="Use current location">
+      <button id="geo"
+              class="icon-btn"
+              title="Use current location"
+              aria-label="Use current location">
         <span class="material-icons">my_location</span>
       </button>
     </div>
@@ -58,7 +65,10 @@
           </select>
         </label>
 
-        <button id="panel-toggle" class="icon-btn panel-toggle" title="Collapse panel" aria-label="Collapse panel">
+        <button id="panel-toggle"
+                class="icon-btn panel-toggle"
+                title="Collapse panel"
+                aria-label="Collapse panel">
           <span class="material-icons" id="panel-toggle-icon">expand_more</span>
         </button>
       </div>
@@ -70,8 +80,18 @@
           <span class="cutoff-label">Elevation cutoff</span>
           <span class="cutoff-value"><span id="cutoff-value">0</span>°</span>
         </div>
-        <input id="cutoff" type="range" min="0" max="30" step="1" value="0" aria-label="Elevation cutoff slider">
-        <div class="cutoff-hint">Showing satellites with El ≥ <span id="cutoff-hint-value">0</span>°</div>
+
+        <input id="cutoff"
+               type="range"
+               min="0"
+               max="30"
+               step="1"
+               value="0"
+               aria-label="Elevation cutoff slider">
+
+        <div class="cutoff-hint">
+          Showing satellites with El ≥ <span id="cutoff-hint-value">0</span>°
+        </div>
       </div>
 
       <div id="sat-table"></div>
@@ -84,5 +104,6 @@
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/satellite.js@6.0.2/dist/satellite.min.js"></script>
   <script src="app.js"></script>
+
 </body>
 </html>
