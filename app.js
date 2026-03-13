@@ -10,16 +10,6 @@ const baseLayers = {
     attribution: 'Tiles &copy; Esri',
     maxZoom: 19
   }),
-  "Hybrid": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-    attribution: 'Tiles &copy; Esri',
-    maxZoom: 19
-  }).addTo(map), // base satellite
-  "Labels": L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_labels_under/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap & Carto',
-    maxZoom: 19,
-    pane: 'overlayPane',
-    opacity: 0.85
-  }),
   "Dark": L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; OpenStreetMap & Carto',
     maxZoom: 19
@@ -34,11 +24,7 @@ const baseLayers = {
   })
 };
 
-// Hybrid = Satellite + Labels
-const hybridGroup = L.layerGroup([baseLayers["Satellite"], baseLayers["Labels"]]);
-baseLayers["Hybrid"] = hybridGroup;
-
-hybridGroup.addTo(map); // default to hybrid
+baseLayers["Streets"].addTo(map);
 
 L.control.layers(baseLayers, null, { position: 'topright' }).addTo(map);
 
@@ -89,8 +75,9 @@ function addSatelliteMarkers() {
 
 addSatelliteMarkers();
 
-function updateLocation(lat, lon, height = 0) {
+function updateLocation(lat, lon, height = 0, setZoom = false) {
   userMarker.setLatLng([lat, lon]);
+  if (setZoom) map.setView([lat, lon], 12);
 
   const observerGd = {
     longitude: satellite.degreesToRadians(lon),
@@ -135,18 +122,18 @@ function updateLocation(lat, lon, height = 0) {
 // Auto-detect on load
 if (navigator.geolocation) {
   navigator.geolocation.getCurrentPosition(
-    pos => updateLocation(pos.coords.latitude, pos.coords.longitude, pos.coords.altitude / 1000 || 0),
+    pos => updateLocation(pos.coords.latitude, pos.coords.longitude, pos.coords.altitude / 1000 || 0, true),
     err => {
       console.warn('Geolocation failed:', err);
-      updateLocation(39.0, -104.0, 2.3);
+      updateLocation(39.0, -104.0, 2.3, true);
     },
     { enableHighAccuracy: true, timeout: 5000 }
   );
 } else {
-  updateLocation(39.0, -104.0, 2.3);
+  updateLocation(39.0, -104.0, 2.3, true);
 }
 
-// Autocomplete and other event listeners unchanged...
+// Autocomplete
 let timeout;
 searchInput.addEventListener('input', () => {
   clearTimeout(timeout);
@@ -185,6 +172,6 @@ map.on('click', e => updateLocation(e.latlng.lat, e.latlng.lng));
 
 geoBtn.addEventListener('click', () => {
   navigator.geolocation.getCurrentPosition(pos => {
-    updateLocation(pos.coords.latitude, pos.coords.longitude, pos.coords.altitude / 1000 || 0);
+    updateLocation(pos.coords.latitude, pos.coords.longitude, pos.coords.altitude / 1000 || 0, true);
   });
 });
