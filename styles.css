@@ -12,7 +12,7 @@
   --shadow:0 10px 28px rgba(0,0,0,.14);
   --shadow-soft:0 4px 14px rgba(0,0,0,.12);
   --appbar-h:64px;
-  /* ✅ NEW: reserve space for Leaflet layer/zoom controls */
+  /* reserve space for Leaflet layer/zoom controls */
   --leaflet-control-gap:56px;
 }
 
@@ -165,7 +165,6 @@ body{
 /* ---------- Satellite Panel ---------- */
 #sat-panel{
   position:fixed;
-  /* ✅ pushed below Leaflet controls */
   top:calc(var(--appbar-h) + var(--leaflet-control-gap) + 12px);
   right:12px;
   width:320px;
@@ -174,10 +173,18 @@ body{
   border:1px solid var(--border);
   border-radius:var(--radius);
   box-shadow:var(--shadow);
-  z-index:900; /* ✅ FIX: allow Leaflet controls above panel */
+  z-index:900;
   display:flex;
   flex-direction:column;
   overflow:hidden;
+
+  /* ✅ FIX: allow clicks to pass through to map controls */
+  pointer-events:none;
+}
+
+/* ✅ Re-enable interaction inside the panel */
+#sat-panel *{
+  pointer-events:auto;
 }
 
 .panel-header{
@@ -398,7 +405,6 @@ tbody tr.selected{ background:#e8f0fe; }
 @media (max-width: 600px){
   :root{
     --appbar-h:60px;
-    /* ✅ no Leaflet overlap issue on mobile */
     --leaflet-control-gap:0px;
   }
 
