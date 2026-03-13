@@ -70,11 +70,12 @@ const GREAT_CIRCLE_STEPS = 64;
 let satellites = [];
 let satMarkers = new Map(); // name -> L.Marker
 let lineLayers = [];
-let footprintLayer = null;
-
 let sortMode = "lon";
 let elevationCutoff = 0;
-let selectedSatName = null;
+
+// ✅ Multi-select state (replaces single selectedSatName)
+let selectedSatNames = new Set();
+
 let lastObserver = { lat: 39.0, lon: -104.0, heightKm: 2.3 };
 
 /* ============================
@@ -85,7 +86,7 @@ const FOOTPRINT_STORAGE_KEY = "satFootprintEnabled";
 function safeGetFootprintFromStorage() {
   try {
     const v = localStorage.getItem(FOOTPRINT_STORAGE_KEY);
-    if (v === null) return false;          // ✅ default OFF if not set
+    if (v === null) return false; // default OFF if not set
     return v === "true";
   } catch {
     return false;
@@ -108,55 +109,77 @@ if (footprintToggle) {
 }
 
 /* ============================
- Selected Satellite Footprint (respects cutoff + toggle)
+ Multiple Footprints (selected satellites)
+ - respects cutoff + toggle
 ============================ */
-function clearFootprint() {
-  if (footprintLayer) {
-    map.removeLayer(footprintLayer);
-    footprintLayer = null;
+const FOOTPRINT_COLORS = [
+  "#1a73e8", // blue
+  "#34a853", // green
+  "#fbbc05", // yellow
+  "#ea4335", // red
+  "#8e24aa", // purple
+  "#00acc1"  // cyan
+];
+
+let footprintLayers = new Map(); // satName -> L.Circle
+
+function clearFootprints() {
+  for (const [, layer] of footprintLayers) {
+    map.removeLayer(layer);
   }
+  footprintLayers.clear();
 }
 
-function updateFootprint(selectedSat) {
-  clearFootprint();
-
-  if (!footprintEnabled) return;
-  if (!selectedSat) return;
-
-  const satLat = selectedSat.lat ?? DEFAULT_SAT_LAT;
-  const satLon = selectedSat.lon;
-  const altKm = selectedSat.alt_km ?? DEFAULT_SAT_ALT_KM;
-
+function footprintRadiusKmForSatellite(sat) {
+  const satAltKm = sat.alt_km ?? DEFAULT_SAT_ALT_KM;
   const Re = EARTH_RADIUS_KM;
-  const r = Re + altKm;
+  const r = Re + satAltKm;
   const k = Re / r;
 
-  // Elevation cutoff in radians
   const e = (elevationCutoff || 0) * Math.PI / 180;
-
-  // Geometry: cos(ψ + e) = (Re/(Re+h)) * cos(e)
-  // => ψ = arccos(k cos(e)) - e
   const arg = k * Math.cos(e);
 
-  if (!isFinite(arg)) return;
-  if (arg >= 1) return; // too strict -> no region
-  if (arg <= -1) return;
+  if (!isFinite(arg)) return null;
+  if (arg >= 1) return null;
+  if (arg <= -1) return null;
 
   const psi = Math.acos(arg) - e;
-  if (!isFinite(psi) || psi <= 0) return;
+  if (!isFinite(psi) || psi <= 0) return null;
 
-  const groundRadiusKm = Re * psi;
+  return Re * psi;
+}
 
-  footprintLayer = L.circle([satLat, satLon], {
-    pane: FOOTPRINT_PANE,
-    radius: groundRadiusKm * 1000,
-    color: "#1a73e8",
-    weight: 2,
-    opacity: 0.85,
-    fillColor: "#1a73e8",
-    fillOpacity: 0.08,
-    interactive: false
-  }).addTo(map);
+function updateFootprints() {
+  clearFootprints();
+
+  if (!footprintEnabled) return;
+  if (!selectedSatNames.size) return;
+
+  // draw footprints for selected satellites that exist in the satellites list
+  const selected = satellites.filter(s => selectedSatNames.has(s.name));
+
+  selected.forEach((sat, idx) => {
+    const radiusKm = footprintRadiusKmForSatellite(sat);
+    if (!radiusKm) return;
+
+    const satLat = sat.lat ?? DEFAULT_SAT_LAT;
+    const satLon = sat.lon;
+
+    const color = FOOTPRINT_COLORS[idx % FOOTPRINT_COLORS.length];
+
+    const layer = L.circle([satLat, satLon], {
+      pane: FOOTPRINT_PANE,
+      radius: radiusKm * 1000,
+      color,
+      weight: 2,
+      opacity: 0.85,
+      fillColor: color,
+      fillOpacity: 0.06,
+      interactive: false
+    }).addTo(map);
+
+    footprintLayers.set(sat.name, layer);
+  });
 }
 
 /* ============================
@@ -279,11 +302,15 @@ const normAzDeg = (d) => (d % 360 + 360) % 360;
 function greatCirclePoints(lat1, lon1, lat2, lon2, steps = GREAT_CIRCLE_STEPS) {
   const φ1 = degToRad(lat1), λ1 = degToRad(lon1);
   const φ2 = degToRad(lat2), λ2 = degToRad(lon2);
+
   const v1 = [Math.cos(φ1) * Math.cos(λ1), Math.cos(φ1) * Math.sin(λ1), Math.sin(φ1)];
   const v2 = [Math.cos(φ2) * Math.cos(λ2), Math.cos(φ2) * Math.sin(λ2), Math.sin(φ2)];
+
   const dot = Math.min(1, Math.max(-1, v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2]));
   const ω = Math.acos(dot);
+
   if (!isFinite(ω) || ω === 0) return [[lat1, lon1], [lat2, lon2]];
+
   const sinω = Math.sin(ω);
   const pts = [];
   for (let i = 0; i <= steps; i++) {
@@ -307,9 +334,10 @@ function greatCirclePoints(lat1, lon1, lat2, lon2, steps = GREAT_CIRCLE_STEPS) {
 function addSatelliteMarkers() {
   for (const [, m] of satMarkers) map.removeLayer(m);
   satMarkers.clear();
+
   satellites.forEach((sat) => {
     const marker = L.marker([sat.lat ?? DEFAULT_SAT_LAT, sat.lon], {
-      icon: satIcon(selectedSatName === sat.name)
+      icon: satIcon(selectedSatNames.has(sat.name))
     }).addTo(map);
 
     marker.bindTooltip(
@@ -332,7 +360,8 @@ function refreshMarkerSelection() {
   for (const sat of satellites) {
     const marker = satMarkers.get(sat.name);
     if (!marker) continue;
-    const isSelected = selectedSatName === sat.name;
+
+    const isSelected = selectedSatNames.has(sat.name);
     marker.setIcon(satIcon(isSelected));
     marker.setZIndexOffset(isSelected ? 1000 : 0);
   }
@@ -374,7 +403,7 @@ function buildTable(rows) {
       </thead>
       <tbody>
         ${rows.map(r => {
-          const selected = (selectedSatName === r.sat.name) ? "selected" : "";
+          const selected = selectedSatNames.has(r.sat.name) ? "selected" : "";
           return `
             <tr class="${selected}" data-sat="${r.sat.name}">
               <td>${r.sat.name}</td>
@@ -391,7 +420,11 @@ function buildTable(rows) {
   satTable.querySelectorAll("tr[data-sat]").forEach((row) => {
     row.addEventListener("click", () => {
       const name = row.getAttribute("data-sat");
-      selectedSatName = (selectedSatName === name) ? null : name;
+
+      // ✅ Toggle membership for multi-select
+      if (selectedSatNames.has(name)) selectedSatNames.delete(name);
+      else selectedSatNames.add(name);
+
       refreshMarkerSelection();
       updateLocation(lastObserver.lat, lastObserver.lon, lastObserver.heightKm, false);
       openPanel();
@@ -411,17 +444,32 @@ function renderObserverInfo(lat, lon, heightKm) {
   `;
 }
 
-function renderSelectedInfo(selectedRow) {
+function renderSelectedInfo(selectedRows) {
   if (!selectedInfo) return;
-  if (!selectedRow) {
-    selectedInfo.innerHTML = `<div class="muted">None (tap a row)</div>`;
+
+  if (!selectedRows || selectedRows.length === 0) {
+    selectedInfo.innerHTML = `<div class="muted">None (tap rows to select)</div>`;
     return;
   }
+
+  if (selectedRows.length === 1) {
+    const r = selectedRows[0];
+    selectedInfo.innerHTML = `
+      <div><b>${r.sat.name}</b></div>
+      <div>Az: ${r.az.toFixed(1)}°</div>
+      <div>El: ${r.el.toFixed(1)}°</div>
+      <div class="muted">${r.status}</div>
+    `;
+    return;
+  }
+
+  const maxLines = 5;
+  const head = selectedRows.slice(0, maxLines);
+
   selectedInfo.innerHTML = `
-    <div><b>${selectedRow.sat.name}</b></div>
-    <div>Az: ${selectedRow.az.toFixed(1)}°</div>
-    <div>El: ${selectedRow.el.toFixed(1)}°</div>
-    <div class="muted">${selectedRow.status}</div>
+    <div><b>${selectedRows.length} satellites selected</b></div>
+    ${head.map(r => `<div>${r.sat.name}: Az ${r.az.toFixed(0)}°, El ${r.el.toFixed(0)}°</div>`).join("")}
+    ${selectedRows.length > maxLines ? `<div class="muted">…and ${selectedRows.length - maxLines} more</div>` : ""}
   `;
 }
 
@@ -461,35 +509,43 @@ function updateLocation(lat, lon, heightKm = 0, setZoom = false) {
 
   const filtered = computed.filter(r => r.el >= elevationCutoff);
 
-  if (selectedSatName && !filtered.some(r => r.sat.name === selectedSatName)) {
-    selectedSatName = null;
-    refreshMarkerSelection();
+  // If selected satellites fall out of cutoff filter, unselect them (matches previous behavior)
+  const filteredNames = new Set(filtered.map(r => r.sat.name));
+  let changed = false;
+  for (const name of Array.from(selectedSatNames)) {
+    if (!filteredNames.has(name)) {
+      selectedSatNames.delete(name);
+      changed = true;
+    }
   }
+  if (changed) refreshMarkerSelection();
 
   filtered.forEach((r) => {
     if (r.el <= 0) return; // behind Earth → no line on 2D map
-    const isSelected = (selectedSatName === r.sat.name);
+
+    const isSelected = selectedSatNames.has(r.sat.name);
     const pts = greatCirclePoints(lat, lon, r.sat.lat ?? 0, r.sat.lon);
+
     const line = L.polyline(pts, {
       color: r.el > MIN_USABLE_EL ? "#1e8e3e" : "#1a73e8",
       weight: isSelected ? 5 : 3,
       opacity: isSelected ? 0.95 : 0.70,
       dashArray: r.el > MIN_USABLE_EL ? null : "5,5"
     }).addTo(map);
+
     if (isSelected) line.bringToFront();
     lineLayers.push(line);
   });
 
   buildTable(filtered);
 
-  const selectedRow = selectedSatName
-    ? computed.find(r => r.sat.name === selectedSatName)
-    : null;
+  const selectedRows = computed.filter(r => selectedSatNames.has(r.sat.name));
 
   renderObserverInfo(lat, lon, heightKm);
-  renderSelectedInfo(selectedRow);
+  renderSelectedInfo(selectedRows);
 
-  updateFootprint(selectedRow ? selectedRow.sat : null);
+  // ✅ Multiple footprints for multi-selected satellites
+  updateFootprints();
 
   if (info) info.innerHTML = "";
 }
@@ -530,12 +586,7 @@ if (footprintToggle) {
   footprintToggle.addEventListener("change", () => {
     footprintEnabled = !!footprintToggle.checked;
     safeSetFootprintToStorage(footprintEnabled);
-
-    const selectedSat = selectedSatName
-      ? satellites.find(s => s.name === selectedSatName)
-      : null;
-
-    updateFootprint(selectedSat);
+    updateFootprints();
   });
 }
 
@@ -558,10 +609,12 @@ function renderAutocomplete(items) {
   if (!autocomplete) return;
   acItems = items;
   acActiveIndex = -1;
+
   if (!items.length) {
     hideAutocomplete();
     return;
   }
+
   autocomplete.innerHTML = items.map((p, idx) => {
     const primary = (p.display_name || "").split(",").slice(0, 2).join(",").trim();
     const secondary = (p.display_name || "").split(",").slice(2).join(",").trim();
@@ -575,7 +628,9 @@ function renderAutocomplete(items) {
       </div>
     `;
   }).join("");
+
   autocomplete.classList.remove("hidden");
+
   autocomplete.querySelectorAll(".autocomplete-item").forEach((el) => {
     el.addEventListener("mousedown", (ev) => {
       ev.preventDefault();
@@ -589,6 +644,7 @@ function setActive(idx) {
   if (!autocomplete) return;
   const nodes = autocomplete.querySelectorAll(".autocomplete-item");
   nodes.forEach(n => n.classList.remove("active"));
+
   if (idx >= 0 && idx < nodes.length) {
     nodes[idx].classList.add("active");
     nodes[idx].scrollIntoView({ block: "nearest" });
@@ -607,10 +663,12 @@ function chooseAutocomplete(idx) {
 searchInput.addEventListener("input", () => {
   clearTimeout(acTimer);
   const q = searchInput.value.trim();
+
   if (q.length < 3) {
     hideAutocomplete();
     return;
   }
+
   acTimer = setTimeout(() => {
     fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=8&addressdetails=1`)
       .then(res => res.json())
@@ -621,6 +679,7 @@ searchInput.addEventListener("input", () => {
 
 searchInput.addEventListener("keydown", (e) => {
   if (!autocomplete || autocomplete.classList.contains("hidden")) return;
+
   if (e.key === "ArrowDown") {
     e.preventDefault();
     setActive(Math.min(acActiveIndex + 1, acItems.length - 1));
