@@ -3,12 +3,10 @@
 ============================ */
 const map = L.map('map', {
   zoomControl: true,
-  attributionControl: true,
-  minZoom: 1,
-  maxZoom: 19,
-  worldCopyJump: false,
-  continuousWorld: false
-});
+  attributionControl: true, // Leaflet attribution ON (default bottom-right)
+  minZoom: 3,
+  maxZoom: 19
+}).setView([39.0, -104.0], 4);
 
 const baseLayers = {
   "Streets": L.tileLayer(
@@ -75,7 +73,7 @@ let lineLayers = [];
 let sortMode = "lon";
 let elevationCutoff = 0;
 
-// Multi-select state
+// Multi-select
 let selectedSatNames = new Set();
 
 let lastObserver = { lat: 39.0, lon: -104.0, heightKm: 2.3 };
@@ -104,16 +102,12 @@ function safeSetFootprintToStorage(val) {
 }
 
 let footprintEnabled = safeGetFootprintFromStorage();
-
-// Sync toggle UI on load
-if (footprintToggle) {
-  footprintToggle.checked = footprintEnabled;
-}
+if (footprintToggle) footprintToggle.checked = footprintEnabled;
 
 /* ============================
- Antimeridian-safe geometry helper (UNIFIED)
+ Antimeridian-safe geometry helper (UNIFIED + HARDENED)
  - Works for polylines and polygon rings
- - Handles every edge case: exact 180, multiple wraps, repeated points, etc.
+ - Prevents zig/zag by keeping each segment in a consistent lon "zone"
 ============================ */
 function normalizeLon180(lon) {
   // normalize to (-180, 180], keep 180 not -180 for continuity
@@ -122,13 +116,8 @@ function normalizeLon180(lon) {
   return x;
 }
 
-function oppositeDatelineLon(lon) {
-  // If we end at +180, next segment should start at -180, and vice versa
-  return (lon === 180) ? -180 : 180;
-}
-
 function unwrapLon(prevUnwrapped, lonNorm) {
-  // Choose lonNorm + 360k that minimizes jump from prevUnwrapped
+  // choose lonNorm + 360k that minimizes jump
   let best = lonNorm;
   let bestDiff = Math.abs(best - prevUnwrapped);
 
@@ -144,130 +133,142 @@ function unwrapLon(prevUnwrapped, lonNorm) {
 }
 
 /**
- * Split a lat/lon path at the antimeridian.
- * @param {Array<[number,number]>} pts - array of [lat,lon] with lon in degrees.
- * @param {Object} opts
- * @param {boolean} opts.closed - if true, treat as ring (will connect last->first).
- * @returns {Array<Array<[number,number]>>} segments/rings.
+ * Splits a path at the antimeridian and outputs segments that do NOT zig/zag.
+ * Key improvement vs naive splitting:
+ * - Track a "zone index" z such that output lon = unwrappedLon - 360*z
+ *   keeps all lons within one consistent [-180,180] neighborhood per segment.
+ *
+ * @param {Array<[number,number]>} pts array of [lat, lonDeg] (lon may be any real number)
+ * @param {Object} opts {closed:boolean}
+ * @returns {Array<Array<[number,number]>>} segments (polyline) or rings (polygon)
  */
 function splitAtAntimeridian(pts, opts = {}) {
   const closed = !!opts.closed;
   const EPS = 1e-9;
 
   if (!Array.isArray(pts) || pts.length < 2) return [];
-  // Normalize input lon and remove consecutive duplicates
+
+  // Clean: drop invalid + consecutive duplicates (after normalization for comparison)
   const cleaned = [];
   for (const p of pts) {
     if (!p || p.length < 2) continue;
     const lat = +p[0];
-    const lon = normalizeLon180(+p[1]);
+    const lonRaw = +p[1];
+    const lonNorm = normalizeLon180(lonRaw);
+
     const prev = cleaned[cleaned.length - 1];
-    if (!prev || prev[0] !== lat || prev[1] !== lon) cleaned.push([lat, lon]);
+    if (!prev || prev.lat !== lat || prev.lonNorm !== lonNorm) {
+      cleaned.push({ lat, lonRaw, lonNorm });
+    }
   }
   if (cleaned.length < 2) return [];
 
-  // If closed ring, ensure closure by appending first point if needed
+  // If closed ring, ensure closure by repeating first point if necessary
   let work = cleaned;
   if (closed) {
-    const first = work[0];
-    const last = work[work.length - 1];
-    if (first[0] !== last[0] || first[1] !== last[1]) {
-      work = work.concat([[first[0], first[1]]]);
+    const f = work[0];
+    const l = work[work.length - 1];
+    if (f.lat !== l.lat || f.lonNorm !== l.lonNorm) {
+      work = work.concat([{ lat: f.lat, lonRaw: f.lonRaw, lonNorm: f.lonNorm }]);
     }
   }
 
-  // Build unwrapped longitude series
-  const unwrapped = [];
-  unwrapped[0] = work[0][1];
+  // Build continuous unwrapped longitude series
+  const unwrapped = new Array(work.length);
+  unwrapped[0] = work[0].lonNorm; // start in normalized space
   for (let i = 1; i < work.length; i++) {
-    unwrapped[i] = unwrapLon(unwrapped[i - 1], work[i][1]);
+    // Use normalized target but unwrap relative to previous unwrapped
+    unwrapped[i] = unwrapLon(unwrapped[i - 1], work[i].lonNorm);
+  }
+
+  // helper to map an unwrapped lon to a stable [-180,180] lon for a given zone z
+  function lonForZone(lonU, z) {
+    // convert from unwrapped to this zone
+    const lonZ = lonU - 360 * z;
+    return normalizeLon180(lonZ);
   }
 
   const segments = [];
-  let seg = [[work[0][0], work[0][1]]];
+  let zCurr = Math.floor((unwrapped[0] + 180) / 360);
+  let seg = [[work[0].lat, lonForZone(unwrapped[0], zCurr)]];
 
   for (let i = 1; i < work.length; i++) {
-    let lat1 = work[i - 1][0];
-    let lat2 = work[i][0];
+    let lat1 = work[i - 1].lat;
+    let lat2 = work[i].lat;
 
     let lon1u = unwrapped[i - 1];
     let lon2u = unwrapped[i];
 
-    // Determine "world zone" indices for dateline boundaries
-    // Zone changes when crossing boundary at 180 + 360*k.
     let z1 = Math.floor((lon1u + 180) / 360);
     let z2 = Math.floor((lon2u + 180) / 360);
 
-    // If multiple zone jumps (rare), handle iteratively.
+    // Step through potentially multiple boundary crossings
     while (z1 !== z2) {
-      const boundary = 180 + 360 * Math.min(z1, z2); // boundary between zones
+      // boundary between z1 and z1+1 is at lon = 180 + 360*z1 (for increasing),
+      // or lon = -180 + 360*z1 (for decreasing). Using 180+360*z1 works with our zone definition.
+      const boundary = 180 + 360 * Math.min(z1, z2);
       const denom = (lon2u - lon1u);
       if (Math.abs(denom) < EPS) break;
 
       const t = (boundary - lon1u) / denom;
       const latCross = lat1 + t * (lat2 - lat1);
 
-      const lonCrossNorm = normalizeLon180(boundary);
-
-      // End current segment at the boundary
-      seg.push([latCross, lonCrossNorm]);
+      // End current segment at boundary on current zone side
+      seg.push([latCross, lonForZone(boundary, zCurr)]);
       segments.push(seg);
 
-      // Start new segment at opposite side of boundary
-      seg = [[latCross, oppositeDatelineLon(lonCrossNorm)]];
+      // Start new segment at the opposite dateline for the new zone
+      // Update zone current to the new zone
+      if (z2 > z1) zCurr = zCurr + 1;
+      else zCurr = zCurr - 1;
 
-      // Move slightly into the next zone to prevent infinite loops on exact boundary
-      if (z2 > z1) {
-        lon1u = boundary + EPS;
-      } else {
-        lon1u = boundary - EPS;
-      }
+      // new segment begins at boundary mapped to new zone side
+      const boundaryNewSide = (lonForZone(boundary, zCurr) === 180) ? -180 : 180;
+      seg = [[latCross, boundaryNewSide]];
+
+      // Continue from intersection point
+      lon1u = boundary + (z2 > z1 ? EPS : -EPS);
       lat1 = latCross;
       z1 = Math.floor((lon1u + 180) / 360);
     }
 
-    // Finally add the endpoint for this original segment
-    seg.push([lat2, normalizeLon180(lon2u)]);
+    // add endpoint in current zone
+    seg.push([lat2, lonForZone(lon2u, zCurr)]);
   }
 
   if (seg.length >= 2) segments.push(seg);
 
-  // For closed rings, turn each segment into a valid ring if possible
   if (closed) {
+    // Turn segments into valid closed rings
     const rings = [];
     for (const s of segments) {
-      // Remove any tiny rings
+      // remove tiny rings
       if (s.length < 3) continue;
       const f = s[0];
       const l = s[s.length - 1];
-      if (f[0] !== l[0] || f[1] !== l[1]) {
-        s.push([f[0], f[1]]);
-      }
-      // Ensure still valid after closure
+      if (f[0] !== l[0] || f[1] !== l[1]) s.push([f[0], f[1]]);
       if (s.length >= 4) rings.push(s);
     }
     return rings;
   }
 
-  // For open polylines, also remove any 1-point segments
   return segments.filter(s => s.length >= 2);
 }
 
 /* ============================
  TRUE Footprints (Boundary Polygons)
- - Uses PDF boundary method (azimuth sweep)
+ - Uses PDF boundary point method (azimuth sweep)
  - Footprints are true geometric visibility (NOT affected by elevationCutoff)
 ============================ */
 const FOOTPRINT_COLORS = [
-  "#1a73e8", // blue
-  "#34a853", // green
-  "#fbbc05", // yellow
-  "#ea4335", // red
-  "#8e24aa", // purple
-  "#00acc1"  // cyan
+  "#1a73e8",
+  "#34a853",
+  "#fbbc05",
+  "#ea4335",
+  "#8e24aa",
+  "#00acc1"
 ];
 
-// satName -> Leaflet Layer (polygon/multipolygon)
 let footprintLayers = new Map();
 
 function clearFootprints() {
@@ -283,7 +284,7 @@ function toDeg(rad) { return rad * 180 / Math.PI; }
 function horizonAngularRadiusRad(altKm) {
   const Re = EARTH_RADIUS_KM;
   const r = Re + altKm;
-  return Math.acos(Re / r);
+  return Math.acos(Re / r); // p = acos(Re/(Re+h)) [1](https://onedrive.live.com?cid=14B45517F25E7A7A&id=14B45517F25E7A7A!sbd7d18d56e74449ea0f0e51bcf49a997)
 }
 
 function footprintBoundaryPoints(sat, steps = 360) {
@@ -292,22 +293,24 @@ function footprintBoundaryPoints(sat, steps = 360) {
   const altKm = sat.alt_km ?? DEFAULT_SAT_ALT_KM;
 
   const p = horizonAngularRadiusRad(altKm);
-
   const sinp = Math.sin(p);
   const cosp = Math.cos(p);
 
   const pts = [];
+
   for (let i = 0; i <= steps; i++) {
     const a = (i / steps) * 2 * Math.PI;
 
     let lat, lon;
 
-    // PDF special case (MUOS/GEO on equator)
+    // PDF equatorial GEO form:
+    // lat = asin(sin(p)*cos(a))
+    // lon = lon0 + atan2(sin(a)*sin(p), cos(p)) [1](https://onedrive.live.com?cid=14B45517F25E7A7A&id=14B45517F25E7A7A!sbd7d18d56e74449ea0f0e51bcf49a997)
     if (Math.abs(lat0) < 1e-12) {
       lat = Math.asin(sinp * Math.cos(a));
       lon = lon0 + Math.atan2(Math.sin(a) * sinp, cosp);
     } else {
-      // general spherical-circle form
+      // general spherical-circle form (robust for non-equatorial)
       const sinLat0 = Math.sin(lat0);
       const cosLat0 = Math.cos(lat0);
       lat = Math.asin(sinLat0 * cosp + cosLat0 * sinp * Math.cos(a));
@@ -318,9 +321,13 @@ function footprintBoundaryPoints(sat, steps = 360) {
     }
 
     const latDeg = toDeg(lat);
-    const lonDeg = normalizeLon180(toDeg(lon));
-    pts.push([latDeg, lonDeg]);
+
+    // IMPORTANT: do NOT normalize here (prevents sawtooth near dateline)
+    const lonDegRaw = toDeg(lon);
+
+    pts.push([latDeg, lonDegRaw]);
   }
+
   return pts;
 }
 
@@ -330,7 +337,6 @@ function updateFootprints() {
   if (!footprintEnabled) return;
   if (!selectedSatNames.size) return;
 
-  // Stable ordering so colors don't shuffle
   const selected = satellites
     .filter(s => selectedSatNames.has(s.name))
     .sort((a, b) => (a.lon - b.lon) || a.name.localeCompare(b.name));
@@ -340,12 +346,11 @@ function updateFootprints() {
 
     const boundary = footprintBoundaryPoints(sat, 360);
 
-    // Split ring at antimeridian into multiple rings
+    // Use unified hardened splitter for rings
     const rings = splitAtAntimeridian(boundary, { closed: true });
 
     if (!rings.length) return;
 
-    // Leaflet multipolygon format: [ [ring1], [ring2], ... ]
     const multi = rings.map(r => [r]);
 
     const poly = L.polygon(multi, {
@@ -367,24 +372,16 @@ function updateFootprints() {
 ============================ */
 const PIN_STORAGE_KEY = "satPanelPinned";
 function safeGetPinnedFromStorage() {
-  try {
-    return localStorage.getItem(PIN_STORAGE_KEY) === "true";
-  } catch {
-    return false;
-  }
+  try { return localStorage.getItem(PIN_STORAGE_KEY) === "true"; }
+  catch { return false; }
 }
 function safeSetPinnedToStorage(val) {
-  try {
-    localStorage.setItem(PIN_STORAGE_KEY, val ? "true" : "false");
-  } catch {
-    /* ignore */
-  }
+  try { localStorage.setItem(PIN_STORAGE_KEY, val ? "true" : "false"); }
+  catch { /* ignore */ }
 }
 let panelPinned = safeGetPinnedFromStorage();
 function syncPanelPinnedUI() {
-  if (satPanel) {
-    satPanel.classList.toggle("pinned", panelPinned);
-  }
+  if (satPanel) satPanel.classList.toggle("pinned", panelPinned);
   if (panelPinBtn) {
     panelPinBtn.title = panelPinned ? "Pinned" : "Pin panel";
     panelPinBtn.setAttribute("aria-label", panelPinned ? "Pinned" : "Pin panel");
@@ -421,11 +418,8 @@ satBackdrop?.addEventListener("click", () => closePanel(false));
 panelPinBtn?.addEventListener("click", () => {
   panelPinned = !panelPinned;
   syncPanelPinnedUI();
-  if (panelPinned) {
-    openPanel();
-  } else {
-    if (satPanel?.classList.contains("open") && satBackdrop) satBackdrop.classList.add("open");
-  }
+  if (panelPinned) openPanel();
+  else if (satPanel?.classList.contains("open") && satBackdrop) satBackdrop.classList.add("open");
 });
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closePanel(false);
@@ -475,7 +469,7 @@ function greatCirclePoints(lat1, lon1, lat2, lon2, steps = GREAT_CIRCLE_STEPS) {
   const v1 = [Math.cos(φ1) * Math.cos(λ1), Math.cos(φ1) * Math.sin(λ1), Math.sin(φ1)];
   const v2 = [Math.cos(φ2) * Math.cos(λ2), Math.cos(φ2) * Math.sin(λ2), Math.sin(φ2)];
 
-  const dot = Math.min(1, Math.max(-1, v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2]));
+  const dot = Math.min(1, Math.max(-1, v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2]));
   const ω = Math.acos(dot);
 
   if (!isFinite(ω) || ω === 0) return [[lat1, lon1], [lat2, lon2]];
@@ -486,12 +480,12 @@ function greatCirclePoints(lat1, lon1, lat2, lon2, steps = GREAT_CIRCLE_STEPS) {
     const t = i / steps;
     const a = Math.sin((1 - t) * ω) / sinω;
     const b = Math.sin(t * ω) / sinω;
-    const x = a * v1[0] + b * v2[0];
-    const y = a * v1[1] + b * v2[1];
-    const z = a * v1[2] + b * v2[2];
+    const x = a*v1[0] + b*v2[0];
+    const y = a*v1[1] + b*v2[1];
+    const z = a*v1[2] + b*v2[2];
     pts.push([
-      radToDeg(Math.atan2(z, Math.sqrt(x * x + y * y))),
-      radToDeg(Math.atan2(y, x))
+      radToDeg(Math.atan2(z, Math.sqrt(x*x + y*y))),
+      radToDeg(Math.atan2(y, x)) // returns [-180,180]
     ]);
   }
   return pts;
@@ -529,7 +523,6 @@ function refreshMarkerSelection() {
   for (const sat of satellites) {
     const marker = satMarkers.get(sat.name);
     if (!marker) continue;
-
     const isSelected = selectedSatNames.has(sat.name);
     marker.setIcon(satIcon(isSelected));
     marker.setZIndexOffset(isSelected ? 1000 : 0);
@@ -687,7 +680,7 @@ function updateLocation(lat, lon, heightKm = 0, setZoom = false) {
 
   const filtered = computed.filter(r => r.el >= elevationCutoff);
 
-  // Drop selections that no longer meet cutoff filter (existing behavior)
+  // Existing behavior: drop selections that no longer meet cutoff filter
   const filteredNames = new Set(filtered.map(r => r.sat.name));
   let changed = false;
   for (const name of Array.from(selectedSatNames)) {
@@ -699,7 +692,7 @@ function updateLocation(lat, lon, heightKm = 0, setZoom = false) {
   if (changed) refreshMarkerSelection();
 
   filtered.forEach((r) => {
-    if (r.el <= 0) return; // behind Earth -> no line on 2D map
+    if (r.el <= 0) return;
 
     const isSelected = selectedSatNames.has(r.sat.name);
     const pts = greatCirclePoints(lat, lon, r.sat.lat ?? 0, r.sat.lon);
@@ -711,7 +704,7 @@ function updateLocation(lat, lon, heightKm = 0, setZoom = false) {
       dashArray: r.el > MIN_USABLE_EL ? null : "5,5"
     };
 
-    // ✅ Antimeridian-safe lines
+    // Antimeridian-safe polylines
     const segLayers = addWrappedPolyline(pts, options, isSelected);
     lineLayers.push(...segLayers);
   });
@@ -723,7 +716,7 @@ function updateLocation(lat, lon, heightKm = 0, setZoom = false) {
   renderObserverInfo(lat, lon, heightKm);
   renderSelectedInfo(selectedRows);
 
-  // ✅ Antimeridian-safe true footprints
+  // True footprints (independent of elevationCutoff)
   updateFootprints();
 
   if (info) info.innerHTML = "";
@@ -760,7 +753,6 @@ geoBtn.addEventListener("click", () => {
   });
 });
 
-/* Toggle footprint */
 if (footprintToggle) {
   footprintToggle.addEventListener("change", () => {
     footprintEnabled = !!footprintToggle.checked;
@@ -887,9 +879,11 @@ fetch("satellites.json")
   .then(r => r.json())
   .then(data => {
     satellites = Array.isArray(data) ? data : [];
+
     elevationCutoff = parseFloat(cutoffSlider.value);
     cutoffValue.textContent = elevationCutoff.toFixed(0);
     cutoffHintValue.textContent = elevationCutoff.toFixed(0);
+
     addSatelliteMarkers();
     updateLocation(lastObserver.lat, lastObserver.lon, lastObserver.heightKm, true);
   })
