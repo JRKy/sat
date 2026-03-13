@@ -5,13 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Satellite Antenna Tracker</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons"/>
   <link rel="stylesheet" href="styles.css"/>
 </head>
 <body>
   <div id="controls">
-    <input id="search" list="suggestions" type="text" placeholder="Search location" autocomplete="off">
+    <div class="search-container">
+      <span class="material-icons search-icon">search</span>
+      <input id="search" list="suggestions" type="text" placeholder="Search location" autocomplete="off">
+    </div>
     <datalist id="suggestions"></datalist>
-    <button id="geo">Use My Location</button>
+    <button id="geo" title="My Location">
+      <span class="material-icons">my_location</span>
+    </button>
   </div>
   <div id="sat-table"></div>
   <div id="map"></div>

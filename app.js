@@ -52,7 +52,15 @@ fetch('satellites.json')
     updateLocation(39.0, -104.0, 2.3, true);
   });
 
-const userMarker = L.marker([0, 0]).addTo(map);
+const userMarker = L.marker([0, 0], {
+  icon: L.divIcon({
+    className: 'user-marker',
+    html: '<span class="material-icons">location_on</span>',
+    iconSize: [36, 36],
+    iconAnchor: [18, 36]
+  })
+}).addTo(map);
+
 const lines = [];
 const satMarkers = [];
 
@@ -64,7 +72,7 @@ function addSatelliteMarkers() {
     const marker = L.marker([0, sat.lon], {
       icon: L.divIcon({
         className: 'sat-marker',
-        html: '🛰️',
+        html: '<span class="material-icons">satellite</span>',
         iconSize: [32, 32],
         iconAnchor: [16, 16]
       })

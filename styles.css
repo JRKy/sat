@@ -1,16 +1,17 @@
 body { margin:0; height:100vh; font-family:sans-serif; }
 #map { height:70vh; }
-#controls { position:absolute; top:10px; left:50px; z-index:1000; }
-#search { padding:8px; border-radius:4px; border:1px solid #ccc; width:220px; }
-#geo { padding:8px; border-radius:4px; background:#fff; border:1px solid #ccc; margin-left:8px; }
-#info { position:absolute; bottom:10px; left:10px; z-index:1000; background:#fff8; padding:8px 12px; border-radius:6px; box-shadow:0 2px 8px #0003; font-size:14px; max-width:300px; }
-#sat-table { position:absolute; top:50px; right:10px; z-index:1000; background:#fff8; padding:10px; border-radius:6px; box-shadow:0 2px 8px #0003; font-size:13px; max-height:40vh; overflow-y:auto; }
+#controls { position:absolute; top:10px; left:10px; z-index:1000; display:flex; align-items:center; gap:8px; }
+.search-container { position:relative; }
+.search-icon { position:absolute; left:8px; top:50%; transform:translateY(-50%); color:#666; pointer-events:none; }
+#search { padding:8px 8px 8px 36px; border-radius:24px; border:1px solid #ccc; width:220px; font-size:14px; box-shadow:0 1px 6px rgba(0,0,0,0.1); }
+#geo { width:40px; height:40px; border-radius:50%; background:#fff; border:1px solid #ccc; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 6px rgba(0,0,0,0.2); font-size:24px; color:#4285f4; }
+#geo:hover { background:#f0f0f0; }
+#sat-table { position:absolute; top:60px; right:10px; z-index:1000; background:#fff; padding:10px; border-radius:8px; box-shadow:0 2px 12px rgba(0,0,0,0.15); font-size:13px; max-height:50vh; overflow-y:auto; }
+#info { position:absolute; bottom:10px; left:10px; z-index:1000; background:#fff; padding:8px 12px; border-radius:6px; box-shadow:0 2px 8px #0003; font-size:14px; max-width:300px; }
+table { border-collapse:collapse; width:100%; }
+th, td { padding:6px 10px; text-align:left; border-bottom:1px solid #eee; }
+th { background:#f8f9fa; }
 .leaflet-tooltip.line-label { background:#000c; color:#fff; border:none; padding:4px 8px; font-size:11px; opacity:0.85; pointer-events:none; }
-table { border-collapse:collapse; }
-th, td { padding:4px 8px; text-align:left; border-bottom:1px solid #ddd; }
-th { background:#eee; }
-.sat-marker { font-size: 24px; text-align: center; }
-.sat-label {
-  background: #000c; color: #fff; border: none; padding: 4px 8px;
-  font-size: 11px; opacity: 0.9; pointer-events: none;
-}
+.sat-marker { font-size:28px; text-align:center; color:#d32f2f; text-shadow:0 1px 3px #0008; }
+.sat-label { background:#000c; color:#fff; border:none; padding:4px 8px; font-size:11px; opacity:0.9; pointer-events:none; border-radius:4px; }
+.user-marker { font-size:36px; color:#4285f4; text-shadow:0 2px 4px #0006; }
