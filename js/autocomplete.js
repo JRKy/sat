@@ -1,154 +1,121 @@
-import { lastObserver } from "./state.js";
-import { updateLocation } from "./events.js"; // re-exported there
+// ======================================================
+// autocomplete.js
+// Simple location search using Nominatim
+// ======================================================
 
-const searchInput = document.getElementById("search");
-const autocomplete = document.getElementById("autocomplete");
+import { map } from "./map.js";
 
-let acItems = [];
-let acActiveIndex = -1;
-let acTimer = null;
-const acCache = {};
+// DOM elements
+const input = document.getElementById("search");
+const list = document.getElementById("autocomplete");
 
-function hideAutocomplete() {
-  if (!autocomplete) return;
-  autocomplete.classList.add("hidden");
-  autocomplete.innerHTML = "";
-  acItems = [];
-  acActiveIndex = -1;
-  searchInput.removeAttribute("aria-activedescendant");
-}
+let results = [];
+let activeIndex = -1;
+let onSelectCallback = null;
 
-function renderAutocomplete(items) {
-  if (!autocomplete) return;
-  acItems = items;
-  acActiveIndex = -1;
+// ======================================================
+// RENDER RESULTS
+// ======================================================
 
-  if (!items.length) {
-    hideAutocomplete();
+function renderList() {
+  if (results.length === 0) {
+    list.classList.add("hidden");
     return;
   }
 
-  autocomplete.innerHTML = items.map((p, idx) => {
-    const primary = (p.display_name || "").split(",").slice(0, 2).join(",").trim();
-    const secondary = (p.display_name || "").split(",").slice(2).join(",").trim();
-    const id = `ac-item-${idx}`;
-    return `
-      <div class="autocomplete-item"
-           id="${id}"
-           role="option"
-           aria-selected="false"
-           data-idx="${idx}">
-        <span class="material-icons">place</span>
+  list.innerHTML = results
+    .map(
+      (r, i) => `
+      <div class="autocomplete-item ${i === activeIndex ? "active" : ""}" data-i="${i}">
         <div>
-          <div class="autocomplete-primary">${primary || p.display_name}</div>
-          ${secondary ? `<div class="autocomplete-secondary">${secondary}</div>` : ""}
+          <div class="autocomplete-primary">${r.display_name}</div>
+          <div class="autocomplete-secondary">${r.type}</div>
         </div>
       </div>
-    `;
-  }).join("");
+    `
+    )
+    .join("");
 
-  autocomplete.classList.remove("hidden");
+  list.classList.remove("hidden");
 
-  autocomplete.querySelectorAll(".autocomplete-item").forEach((el) => {
-    el.addEventListener("mousedown", (ev) => {
-      ev.preventDefault();
-      const idx = parseInt(el.getAttribute("data-idx"), 10);
-      chooseAutocomplete(idx);
+  // Click events
+  list.querySelectorAll(".autocomplete-item").forEach((item) => {
+    item.addEventListener("click", () => {
+      const i = Number(item.dataset.i);
+      choose(i);
     });
   });
 }
 
-function setActive(idx) {
-  if (!autocomplete) return;
-  const nodes = autocomplete.querySelectorAll(".autocomplete-item");
+// ======================================================
+// CHOOSE RESULT
+// ======================================================
 
-  nodes.forEach(n => {
-    n.classList.remove("active");
-    n.setAttribute("aria-selected", "false");
-  });
+function choose(i) {
+  const r = results[i];
+  if (!r) return;
 
-  if (idx >= 0 && idx < nodes.length) {
-    const node = nodes[idx];
-    node.classList.add("active");
-    node.setAttribute("aria-selected", "true");
-    node.scrollIntoView({ block: "nearest" });
-    searchInput.setAttribute("aria-activedescendant", node.id);
-  } else {
-    searchInput.removeAttribute("aria-activedescendant");
-  }
+  input.value = r.display_name;
+  list.classList.add("hidden");
 
-  acActiveIndex = idx;
+  const lat = Number(r.lat);
+  const lon = Number(r.lon);
+
+  if (onSelectCallback) onSelectCallback(lat, lon);
+
+  map.setView([lat, lon], 8);
 }
 
-function chooseAutocomplete(idx) {
-  const p = acItems[idx];
-  if (!p) return;
+// ======================================================
+// SEARCH API
+// ======================================================
 
-  searchInput.value = p.display_name || searchInput.value;
-  hideAutocomplete();
+async function search(query) {
+  const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+    query
+  )}`;
 
-  const lat = parseFloat(p.lat);
-  const lon = parseFloat(p.lon);
-  if (!isNaN(lat) && !isNaN(lon)) {
-    updateLocation(lat, lon, lastObserver.heightKm, true);
+  const res = await fetch(url);
+  const data = await res.json();
+
+  results = data.slice(0, 8);
+  activeIndex = -1;
+  renderList();
+}
+
+// ======================================================
+// KEYBOARD HANDLING
+// ======================================================
+
+function handleKey(e) {
+  if (list.classList.contains("hidden")) return;
+
+  if (e.key === "ArrowDown") {
+    activeIndex = (activeIndex + 1) % results.length;
+    renderList();
+  } else if (e.key === "ArrowUp") {
+    activeIndex = (activeIndex - 1 + results.length) % results.length;
+    renderList();
+  } else if (e.key === "Enter") {
+    if (activeIndex >= 0) choose(activeIndex);
   }
 }
 
-export function initAutocomplete() {
-  searchInput.addEventListener("input", () => {
-    clearTimeout(acTimer);
-    const q = searchInput.value.trim();
+// ======================================================
+// PUBLIC API
+// ======================================================
 
+export function initAutocomplete(callback) {
+  onSelectCallback = callback;
+
+  input.addEventListener("input", () => {
+    const q = input.value.trim();
     if (q.length < 3) {
-      hideAutocomplete();
+      list.classList.add("hidden");
       return;
     }
-
-    if (acCache[q]) {
-      renderAutocomplete(acCache[q]);
-      return;
-    }
-
-    acTimer = setTimeout(() => {
-      fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=8&addressdetails=1`, {
-        headers: {
-          "Accept": "application/json",
-          "User-Agent": "Satellite-Antenna-Tracker/1.0"
-        }
-      })
-        .then(res => res.json())
-        .then(data => {
-          const items = Array.isArray(data) ? data : [];
-          acCache[q] = items;
-          renderAutocomplete(items);
-        })
-        .catch(() => hideAutocomplete());
-    }, 300);
+    search(q);
   });
 
-  searchInput.addEventListener("keydown", (e) => {
-    if (!autocomplete || autocomplete.classList.contains("hidden")) return;
-
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setActive(Math.min(acActiveIndex + 1, acItems.length - 1));
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setActive(Math.max(acActiveIndex - 1, 0));
-    } else if (e.key === "Enter") {
-      if (acActiveIndex >= 0) {
-        e.preventDefault();
-        chooseAutocomplete(acActiveIndex);
-      }
-    } else if (e.key === "Escape") {
-      hideAutocomplete();
-    }
-  });
-
-  document.addEventListener("click", (e) => {
-    if (!autocomplete) return;
-    if (!autocomplete.contains(e.target) && e.target !== searchInput) {
-      hideAutocomplete();
-    }
-  });
+  input.addEventListener("keydown", handleKey);
 }
