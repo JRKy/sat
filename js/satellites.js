@@ -25,7 +25,7 @@ export function loadSatellitesFromList(list) {
 }
 
 export function fetchSatellites() {
-  fetch("../data/satellites.json", {
+  fetch("./data/satellites.json", {
     headers: {
       "Accept": "application/json"
     }
