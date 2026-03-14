@@ -6,7 +6,7 @@ export const WORLD_BOUNDS = L.latLngBounds(
 );
 
 export const map = L.map("map", {
-  zoomControl: true,
+  zoomControl: false,   // ⭐ disable default position
   attributionControl: true,
   minZoom: 1,
   maxZoom: 19,
@@ -14,6 +14,9 @@ export const map = L.map("map", {
   maxBounds: WORLD_BOUNDS,
   maxBoundsViscosity: 0.8
 }).setView([0, 0], 2);
+
+// ⭐ Add zoom control bottom-left
+L.control.zoom({ position: "bottomleft" }).addTo(map);
 
 const baseLayers = {
   "Streets": L.tileLayer(

@@ -2,7 +2,7 @@ import {
   setSatellites
 } from "./state.js";
 import { addSatelliteMarkers } from "./markers.js";
-import { updateLocation } from "./events.js";
+// import { updateLocation } from "./events.js";  // REMOVED
 import { lastObserver } from "./state.js";
 
 function normalizeSatellite(s) {
@@ -21,7 +21,9 @@ export function loadSatellitesFromList(list) {
 
   setSatellites(sats);
   addSatelliteMarkers();
-  updateLocation(lastObserver.lat, lastObserver.lon, lastObserver.heightKm, false);
+
+  // ❌ Removed automatic updateLocation() on load
+  // updateLocation(lastObserver.lat, lastObserver.lon, lastObserver.heightKm, false);
 }
 
 export function fetchSatellites() {

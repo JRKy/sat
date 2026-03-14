@@ -279,7 +279,7 @@ html, body {
 }
 
 /* Shift map controls left when panel is open */
-#sat-panel.open ~ .leaflet-top.leaflet-right {
+body.panel-open .leaflet-top.leaflet-right {
   right: 360px;
 }
 

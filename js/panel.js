@@ -23,6 +23,8 @@ export function syncPanelPinnedUI() {
 export function openPanel() {
   if (!satPanel) return;
   satPanel.classList.add("open");
+  document.body.classList.add("panel-open");   // ⭐ NEW
+
   if (satBackdrop) {
     if (panelPinned) satBackdrop.classList.remove("open");
     else satBackdrop.classList.add("open");
@@ -33,6 +35,8 @@ export function closePanel(force = false) {
   if (!satPanel) return;
   if (panelPinned && !force) return;
   satPanel.classList.remove("open");
+  document.body.classList.remove("panel-open");  // ⭐ NEW
+
   if (satBackdrop) satBackdrop.classList.remove("open");
 }
 
