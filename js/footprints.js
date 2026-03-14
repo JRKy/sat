@@ -37,7 +37,6 @@ export function fitToFootprints() {
 
 /**
  * Unwrap longitudes so the ring is monotonic and continuous.
- * We do NOT normalize to [-180, 180]; we just keep it continuous.
  */
 function unwrapRing(ring) {
   if (!ring.length) return ring;
@@ -49,7 +48,6 @@ function unwrapRing(ring) {
     const [lat, lonRaw] = ring[i];
     let lon = lonRaw;
 
-    // unwrap relative to previous longitude
     while (lon - prevLon > 180) lon -= 360;
     while (lon - prevLon < -180) lon += 360;
 
@@ -72,37 +70,48 @@ export function updateFootprints(footprintEnabled) {
   selected.forEach((sat, idx) => {
     const color = FOOTPRINT_COLORS[idx % FOOTPRINT_COLORS.length];
 
-    // 1. Generate raw footprint ring (your math is already correct)
+    // 1. Generate raw footprint ring
     const boundary = footprintBoundaryPoints(sat, 720);
     if (!boundary || boundary.length < 3) return;
 
-    // 2. Unwrap longitudes so Leaflet doesn't fold at ±180
+    // 2. Unwrap longitudes
     const unwrapped = unwrapRing(boundary);
 
-    // 3. Draw filled polygon
-    const fill = L.polygon(unwrapped, {
-      pane: FOOTPRINT_PANE,
-      color,
-      weight: 1,
-      opacity: 0.0,
-      fillColor: color,
-      fillOpacity: 0.06,
-      noWrap: true,
-      interactive: false
-    }).addTo(map);
+    // 3. Repeat footprints across world tiles
+    const offsets = [0, 360, -360];
 
-    // 4. Draw outline
-    const outline = L.polyline(unwrapped, {
-      pane: FOOTPRINT_PANE,
-      color,
-      weight: 2,
-      opacity: 0.85,
-      smoothFactor: 1.0,
-      noWrap: true,
-      interactive: false
-    }).addTo(map);
+    const layers = [];
 
-    const group = L.layerGroup([fill, outline]).addTo(map);
+    offsets.forEach(offset => {
+      const shifted = unwrapped.map(([lat, lon]) => [lat, lon + offset]);
+
+      // Filled polygon
+      const fill = L.polygon(shifted, {
+        pane: FOOTPRINT_PANE,
+        color,
+        weight: 1,
+        opacity: 0.0,
+        fillColor: color,
+        fillOpacity: 0.06,
+        noWrap: true,
+        interactive: false
+      }).addTo(map);
+
+      // Outline
+      const outline = L.polyline(shifted, {
+        pane: FOOTPRINT_PANE,
+        color,
+        weight: 2,
+        opacity: 0.85,
+        smoothFactor: 1.0,
+        noWrap: true,
+        interactive: false
+      }).addTo(map);
+
+      layers.push(fill, outline);
+    });
+
+    const group = L.layerGroup(layers).addTo(map);
     footprintLayers.set(sat.name, group);
   });
 
