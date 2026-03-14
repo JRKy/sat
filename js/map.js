@@ -1,47 +1,43 @@
-import { LABEL_ZOOM_THRESHOLD } from "./state.js";
-
-export const WORLD_BOUNDS = L.latLngBounds(
-  L.latLng(-90, -180),
-  L.latLng(90, 180)
-);
-
+// --- Base map initialization ---
 export const map = L.map("map", {
-  zoomControl: false,   // ⭐ disable default position
-  attributionControl: true,
-  minZoom: 1,
+  worldCopyJump: true,
+  center: [0, 0],
+  zoom: 2,
+  zoomControl: false,
+  preferCanvas: true
+});
+
+// --- Tile layer ---
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 19,
-  worldCopyJump: false,
-  maxBounds: WORLD_BOUNDS,
-  maxBoundsViscosity: 0.8
-}).setView([0, 0], 2);
+  attribution: "&copy; OpenStreetMap contributors"
+}).addTo(map);
 
-// ⭐ Add zoom control bottom-left
-L.control.zoom({ position: "bottomleft" }).addTo(map);
+// --- Panes (rendering layers) ---
 
-const baseLayers = {
-  "Streets": L.tileLayer(
-    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    { attribution: "© OpenStreetMap contributors", maxZoom: 19 }
-  ),
-  "Satellite": L.tileLayer(
-    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    { attribution: "Tiles © Esri", maxZoom: 19 }
-  ),
-  "Dark": L.tileLayer(
-    "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-    { attribution: "© OpenStreetMap & Carto", maxZoom: 19 }
-  )
-};
-
-baseLayers["Streets"].addTo(map);
-L.control.layers(baseLayers, null, { position: "topright" }).addTo(map);
-L.control.scale({ imperial: true, metric: true, position: "bottomleft" }).addTo(map);
-
-export const FOOTPRINT_PANE = "footprintPane";
+// Footprints (under satellites)
+export const FOOTPRINT_PANE = "footprint-pane";
 map.createPane(FOOTPRINT_PANE);
-map.getPane(FOOTPRINT_PANE).style.zIndex = 250;
+map.getPane(FOOTPRINT_PANE).style.zIndex = 300;
 map.getPane(FOOTPRINT_PANE).style.pointerEvents = "none";
 
-export function getLabelZoomThreshold() {
-  return LABEL_ZOOM_THRESHOLD;
-}
+// Satellite markers (above footprints)
+export const SAT_PANE = "satellite-pane";
+map.createPane(SAT_PANE);
+map.getPane(SAT_PANE).style.zIndex = 450;
+map.getPane(SAT_PANE).style.pointerEvents = "auto";
+
+// Lines (satellite-to-observer links)
+export const LINE_PANE = "line-pane";
+map.createPane(LINE_PANE);
+map.getPane(LINE_PANE).style.zIndex = 400;
+map.getPane(LINE_PANE).style.pointerEvents = "none";
+
+// User marker (highest priority)
+export const USER_PANE = "user-pane";
+map.createPane(USER_PANE);
+map.getPane(USER_PANE).style.zIndex = 500;
+map.getPane(USER_PANE).style.pointerEvents = "auto";
+
+// Optional: zoom control
+L.control.zoom({ position: "topright" }).addTo(map);
