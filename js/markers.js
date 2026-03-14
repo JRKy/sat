@@ -2,7 +2,6 @@ import { map, SAT_PANE } from "./map.js";
 import {
   satellites,
   selectedSatNames,
-  setSelectedSatNames,
   lastObserver
 } from "./state.js";
 
