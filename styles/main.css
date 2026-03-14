@@ -1,27 +1,27 @@
 /* =========================================
-   Root Variables & Global Resets
+   Material-Inspired Theme
 ========================================= */
 :root {
   --bg: #ffffff;
-  --bg-panel: #f8f9fa;
-  --bg-panel-header: #e9ecef;
-  --bg-hover: #f1f3f4;
+  --bg-panel: #fafafa;
+  --bg-panel-header: #f1f3f4;
+  --bg-hover: #f5f5f5;
 
   --border: #dadce0;
-  --border-dark: #c6c6c6;
+  --border-dark: #c4c7c5;
 
   --text: #202124;
   --text-muted: #5f6368;
 
   --accent: #1a73e8;
-  --accent-hover: #1765cc;
+  --accent-hover: #185abc;
 
   --good: #1e8e3e;
   --low: #fbbc05;
   --bad: #ea4335;
 
-  --shadow: 0 2px 8px rgba(0,0,0,0.15);
-  --radius: 8px;
+  --shadow: 0 3px 10px rgba(0,0,0,0.15);
+  --radius: 12px;
 
   --safe-top: env(safe-area-inset-top);
   --safe-bottom: env(safe-area-inset-bottom);
@@ -45,13 +45,13 @@ html, body {
 }
 
 /* =========================================
-   Floating Buttons
+   Floating Action Buttons (Material FAB)
 ========================================= */
 .floating-btn {
   position: absolute;
   right: calc(16px + var(--safe-right));
-  width: 48px;
-  height: 48px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   border: none;
   background: var(--bg);
@@ -61,11 +61,16 @@ html, body {
   justify-content: center;
   cursor: pointer;
   z-index: 900;
-  transition: background 0.15s;
+  transition: background 0.15s, box-shadow 0.15s;
 }
 
 .floating-btn:hover {
   background: var(--bg-hover);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.floating-btn:active {
+  background: #e8eaed;
 }
 
 #geo {
@@ -73,33 +78,41 @@ html, body {
 }
 
 #sat-toggle {
-  bottom: calc(80px + var(--safe-bottom));
+  bottom: calc(88px + var(--safe-bottom));
 }
 
 /* =========================================
-   Search Bar + Autocomplete
+   Search Bar (Material Search Field)
 ========================================= */
 #search-container {
   position: absolute;
   top: calc(16px + var(--safe-top));
   left: 50%;
   transform: translateX(-50%);
-  width: 320px;
+  width: 340px;
   z-index: 900;
 }
 
 #search {
   width: 100%;
-  padding: 10px 12px;
-  border-radius: var(--radius);
+  padding: 12px 14px;
+  border-radius: 24px;
   border: 1px solid var(--border);
   background: var(--bg);
   font-size: 15px;
   box-shadow: var(--shadow);
+  outline: none;
+  transition: border 0.15s, box-shadow 0.15s;
 }
 
+#search:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(26,115,232,0.25);
+}
+
+/* Autocomplete */
 #autocomplete {
-  margin-top: 4px;
+  margin-top: 6px;
   background: var(--bg);
   border-radius: var(--radius);
   border: 1px solid var(--border);
@@ -115,8 +128,8 @@ html, body {
 
 .autocomplete-item {
   display: flex;
-  gap: 10px;
-  padding: 8px 12px;
+  gap: 12px;
+  padding: 10px 14px;
   cursor: pointer;
   align-items: center;
 }
@@ -127,17 +140,17 @@ html, body {
 }
 
 .autocomplete-primary {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
 }
 
 .autocomplete-secondary {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
 }
 
 /* =========================================
-   Satellite Panel
+   Satellite Panel (Material Navigation Drawer)
 ========================================= */
 #sat-panel {
   position: absolute;
@@ -154,10 +167,7 @@ html, body {
   flex-direction: column;
 }
 
-#sat-panel.open {
-  right: 0;
-}
-
+#sat-panel.open,
 #sat-panel.pinned {
   right: 0;
 }
@@ -180,17 +190,20 @@ html, body {
 .panel-header {
   display: flex;
   justify-content: flex-end;
-  gap: 4px;
-  padding: 8px;
+  gap: 6px;
+  padding: 10px;
   background: var(--bg-panel-header);
   border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .icon-btn {
   background: none;
   border: none;
   cursor: pointer;
-  padding: 6px;
+  padding: 8px;
   border-radius: var(--radius);
 }
 
@@ -199,7 +212,7 @@ html, body {
 }
 
 .panel-content {
-  padding: 12px;
+  padding: 14px;
   overflow-y: auto;
   flex: 1;
 }
@@ -208,9 +221,9 @@ html, body {
 .panel-footprint {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin: 8px 0;
-  font-size: 14px;
+  gap: 8px;
+  margin: 12px 0;
+  font-size: 15px;
 }
 
 /* =========================================
@@ -218,8 +231,8 @@ html, body {
 ========================================= */
 #observer-info,
 #selected-info {
-  margin-bottom: 12px;
-  font-size: 14px;
+  margin-bottom: 16px;
+  font-size: 15px;
 }
 
 .muted {
@@ -227,28 +240,29 @@ html, body {
 }
 
 /* =========================================
-   Satellite Table
+   Satellite Table (Material Data Table)
 ========================================= */
 #sat-table table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: 15px;
 }
 
 #sat-table th {
   text-align: left;
-  padding: 6px 4px;
-  border-bottom: 1px solid var(--border);
+  padding: 8px 6px;
+  border-bottom: 2px solid var(--border);
   font-weight: 600;
 }
 
 #sat-table td {
-  padding: 6px 4px;
+  padding: 8px 6px;
   border-bottom: 1px solid var(--border);
 }
 
 #sat-table tr {
   cursor: pointer;
+  transition: background 0.15s;
 }
 
 #sat-table tr:hover {
@@ -257,11 +271,12 @@ html, body {
 
 #sat-table tr.selected {
   background: rgba(26,115,232,0.12);
+  border-left: 4px solid var(--accent);
 }
 
 /* Status Pills */
 .status-pill {
-  padding: 2px 8px;
+  padding: 3px 10px;
   border-radius: 12px;
   font-size: 12px;
   color: #fff;
@@ -278,45 +293,12 @@ html, body {
   background: #d0d0d0;
 }
 
-/* Shift map controls left when panel is open */
 body.panel-open .leaflet-top.leaflet-right {
   right: 360px;
 }
 
 .leaflet-top.leaflet-right {
   transition: right 0.25s ease;
-}
-
-.sat-marker span.material-icons {
-  font-size: 28px;
-  color: var(--accent);
-}
-
-.sat-marker.selected span.material-icons {
-  color: var(--accent-hover);
-}
-
-.user-marker span.material-icons {
-  font-size: 40px;
-  color: var(--accent);
-}
-
-.sat-label {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  padding: 2px 6px;
-  border-radius: var(--radius);
-  font-size: 12px;
-  box-shadow: var(--shadow);
-}
-
-.sat-label .name {
-  font-weight: 600;
-  margin-right: 4px;
-}
-
-.sat-label .lon {
-  color: var(--text-muted);
 }
 
 /* =========================================
