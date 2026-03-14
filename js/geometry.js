@@ -184,7 +184,7 @@ export function splitRingIntoDatelinePolygons(ringPts) {
     ring[0] = [first[0], seamLon];
     ring[ring.length - 1] = [last[0], seamLon];
 
-    // Minimal safety: ensure closure
+    // Force perfect closure
     ring[ring.length - 1] = [ring[0][0], ring[0][1]];
 
     if (ring.length >= 4) rings.push(ring);
@@ -281,16 +281,33 @@ export function footprintBoundaryPoints(sat, steps = 720) {
       );
     }
 
-    const latDeg = toDeg(lat);
-    const lonDegRaw = toDeg(lon);
-    pts.push([latDeg, lonDegRaw]);
+    pts.push([toDeg(lat), toDeg(lon)]);
   }
 
+  // Force closure
   const first = pts[0];
   const last = pts[pts.length - 1];
   if (first[0] !== last[0] || normalizeLon180(first[1]) !== normalizeLon180(last[1])) {
     pts.push([first[0], first[1]]);
   }
+
+  // ⭐ NORTHMOST-POINT SMOOTHING FIX
+  let maxLat = -999;
+  let maxIdx = 0;
+  for (let i = 0; i < pts.length; i++) {
+    if (pts[i][0] > maxLat) {
+      maxLat = pts[i][0];
+      maxIdx = i;
+    }
+  }
+
+  const prev = pts[(maxIdx - 1 + pts.length) % pts.length];
+  const next = pts[(maxIdx + 1) % pts.length];
+
+  pts[maxIdx] = [
+    (prev[0] + next[0]) / 2,
+    (prev[1] + next[1]) / 2
+  ];
 
   return pts;
 }
