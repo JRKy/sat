@@ -1,97 +1,64 @@
-import { map } from "./map.js";
+import { map, SAT_PANE } from "./map.js";
 import {
   satellites,
-  satMarkers,
   selectedSatNames,
-  LABEL_ZOOM_THRESHOLD
+  setSelectedSatNames,
+  lastObserver
 } from "./state.js";
-import { normalizeLon180 } from "./geometry.js";
 
-function userIcon() {
-  return L.divIcon({
-    className: "user-marker",
-    html: '<span class="material-icons">location_on</span>',
-    iconSize: [48, 48],
-    iconAnchor: [24, 48]
-  });
+let satMarkerLayers = new Map();
+
+/**
+ * Clear all satellite markers from the map.
+ */
+export function clearSatMarkers() {
+  for (const [, layer] of satMarkerLayers) {
+    map.removeLayer(layer);
+  }
+  satMarkerLayers.clear();
 }
 
-function satIcon(isSelected) {
-  return L.divIcon({
-    className: isSelected ? "sat-marker selected" : "sat-marker",
-    html: '<span class="material-icons">satellite</span>',
-    iconSize: [36, 36],
-    iconAnchor: [18, 18]
-  });
-}
+/**
+ * Draw satellite markers, repeated across world tiles.
+ */
+export function updateSatMarkers() {
+  clearSatMarkers();
 
-export const userMarker = L.marker([0, 0], { icon: userIcon() }).addTo(map);
-
-export function addSatelliteMarkers() {
-  for (const [, m] of satMarkers) map.removeLayer(m);
-  satMarkers.clear();
+  const offsets = [0, 360, -360];
 
   satellites.forEach((sat) => {
-    const marker = L.marker([sat.lat, sat.lon], {
-      icon: satIcon(selectedSatNames.has(sat.name))
-    }).addTo(map);
-
-    const labelHtml =
-      `<span class="name">${sat.name}</span><span class="lon">${sat.lon.toFixed(1)}°</span>`;
-
-    const labelPermanent =
-      (map.getZoom() >= LABEL_ZOOM_THRESHOLD) || selectedSatNames.has(sat.name);
-
-    marker.bindTooltip(labelHtml, {
-      permanent: labelPermanent,
-      direction: "top",
-      className: "sat-label",
-      offset: [0, -24]
-    });
-
-    if (labelPermanent) marker.openTooltip();
-
-    satMarkers.set(sat.name, marker);
-  });
-
-  refreshMarkerSelection();
-  updateLabelVisibility();
-}
-
-export function refreshMarkerSelection() {
-  for (const sat of satellites) {
-    const marker = satMarkers.get(sat.name);
-    if (!marker) continue;
     const isSelected = selectedSatNames.has(sat.name);
-    marker.setIcon(satIcon(isSelected));
-    marker.setZIndexOffset(isSelected ? 1000 : 0);
-  }
-  updateLabelVisibility();
-}
+    const color = isSelected ? "#1e8e3e" : "#1a73e8";
 
-export function updateLabelVisibility() {
-  for (const sat of satellites) {
-    const marker = satMarkers.get(sat.name);
-    if (!marker) continue;
+    const layers = [];
 
-    const shouldBePermanent =
-      (map.getZoom() >= LABEL_ZOOM_THRESHOLD) || selectedSatNames.has(sat.name);
+    offsets.forEach((offset) => {
+      const shiftedLon = sat.lon + offset;
 
-    const tt = marker.getTooltip();
-    if (!tt) continue;
-    if (tt.options.permanent === shouldBePermanent) continue;
+      const marker = L.circleMarker([sat.lat, shiftedLon], {
+        pane: SAT_PANE,
+        radius: isSelected ? 7 : 5,
+        color,
+        weight: isSelected ? 3 : 2,
+        fillColor: color,
+        fillOpacity: 0.9,
+        noWrap: true,
+        interactive: true
+      })
+        .on("click", () => {
+          if (selectedSatNames.has(sat.name)) {
+            selectedSatNames.delete(sat.name);
+          } else {
+            selectedSatNames.add(sat.name);
+          }
+          updateSatMarkers();
+        })
+        .addTo(map);
 
-    const content = tt.getContent();
-    marker.unbindTooltip();
-    marker.bindTooltip(content, {
-      permanent: shouldBePermanent,
-      direction: "top",
-      className: "sat-label",
-      offset: [0, -24]
+      layers.push(marker);
     });
 
-    if (shouldBePermanent) marker.openTooltip();
-  }
+    const group = L.layerGroup(layers).addTo(map);
+    satMarkerLayers.set(sat.name, group);
+  });
 }
-
-map.on("zoomend", updateLabelVisibility);
