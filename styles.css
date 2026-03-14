@@ -26,27 +26,35 @@ body{
   background:var(--bg);
 }
 
-#map{
-  position:fixed;
-  top:var(--appbar-h);
-  left:0;
-  right:0;
-  bottom:0;
-}
-
-/* ---------- App Bar ---------- */
+/* Safe-area aware app bar + map */
 #app-bar{
   position:fixed;
   top:0; left:0; right:0;
-  height:var(--appbar-h);
+  height:calc(var(--appbar-h) + env(safe-area-inset-top, 0px));
+  padding-top:env(safe-area-inset-top, 0px);
   background:var(--card);
   border-bottom:1px solid var(--border);
   z-index:1200;
   display:flex;
   align-items:center;
-  padding:0 12px;
+  padding-inline:12px;
 }
 
+#map{
+  position:fixed;
+  top:calc(var(--appbar-h) + env(safe-area-inset-top, 0px));
+  left:0;
+  right:0;
+  bottom:0;
+}
+
+/* Focus-visible for keyboard users */
+:focus-visible{
+  outline:2px solid var(--accent);
+  outline-offset:2px;
+}
+
+/* ---------- App Bar ---------- */
 .app-left{
   display:flex;
   align-items:center;
@@ -120,6 +128,7 @@ body{
   place-items:center;
   cursor:pointer;
   box-shadow:var(--shadow-soft);
+  touch-action:manipulation;
 }
 
 .icon-btn .material-icons{
@@ -141,8 +150,8 @@ body{
   border:1px solid var(--border);
   border-radius:14px;
   box-shadow:var(--shadow);
-  overflow:hidden;
-  max-height:340px;
+  overflow:auto;
+  max-height:min(340px, 50vh);
   z-index:1300;
 }
 
@@ -181,10 +190,10 @@ body{
 /* ---------- Satellite Panel: Drawer / Sheet ---------- */
 #sat-panel{
   position:fixed;
-  top:var(--appbar-h);
+  top:calc(var(--appbar-h) + env(safe-area-inset-top, 0px));
   right:0;
   width:min(420px, 92vw);
-  height:calc(100vh - var(--appbar-h));
+  height:calc(100vh - var(--appbar-h) - env(safe-area-inset-top, 0px));
   background:var(--card);
   border-left:1px solid var(--border);
   box-shadow:-10px 0 28px rgba(0,0,0,.18);
@@ -201,7 +210,7 @@ body{
 
 /* ---------- Pinned state ---------- */
 #sat-panel.pinned{
-  box-shadow:-12px 0 32px rgba(0,0,0,.22);
+  box-shadow:-12px 0 32px rgba(0,0,0,.18);
 }
 
 #sat-panel.pinned #panel-pin{
@@ -452,20 +461,20 @@ tbody tr.selected{ background:#e8f0fe; }
 
 .status-good{
   color:var(--good);
-  border-color:rgba(30,142,62,.25);
-  background:rgba(30,142,62,.06);
+  border-color:rgba(30,142,62,.35);
+  background:rgba(30,142,62,.10);
 }
 
 .status-low{
-  color:var(--low);
-  border-color:rgba(26,115,232,.25);
-  background:rgba(26,115,232,.06);
+  color:#1558b0;
+  border-color:rgba(26,115,232,.35);
+  background:rgba(26,115,232,.10);
 }
 
 .status-bad{
   color:var(--bad);
-  border-color:rgba(217,48,37,.25);
-  background:rgba(217,48,37,.06);
+  border-color:rgba(217,48,37,.35);
+  background:rgba(217,48,37,.10);
 }
 
 /* ---------- Leaflet Tooltip Labels ---------- */
@@ -522,7 +531,7 @@ tbody tr.selected{ background:#e8f0fe; }
 /* ---------- Backdrop ---------- */
 .sat-backdrop{
   position:fixed;
-  top:var(--appbar-h);
+  top:calc(var(--appbar-h) + env(safe-area-inset-top, 0px));
   left:0;
   right:0;
   bottom:0;
@@ -575,7 +584,7 @@ tbody tr.selected{ background:#e8f0fe; }
   }
 
   .sat-backdrop{
-    top:var(--appbar-h);
+    top:calc(var(--appbar-h) + env(safe-area-inset-top, 0px));
   }
 
   .search-container{ height:40px; }

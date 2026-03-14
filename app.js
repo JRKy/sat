@@ -1,23 +1,20 @@
 /* ============================
- Map Initialization
+ Map Initialization (Upgraded)
 ============================ */
-const map = L.map('map', {
-  zoomControl: true,
-  attributionControl: true,
-  minZoom: 1, // allow zooming out far enough to see whole world
-  maxZoom: 19,
-  worldCopyJump: false
-}).setView([0, 0], 2); // neutral global start
-
 const WORLD_BOUNDS = L.latLngBounds(
   L.latLng(-90, -180),
   L.latLng(90, 180)
 );
 
-map.setMaxBounds(WORLD_BOUNDS);
-map.on('dragend', () => {
-  map.panInsideBounds(WORLD_BOUNDS, { animate: false });
-});
+const map = L.map("map", {
+  zoomControl: true,
+  attributionControl: true,
+  minZoom: 1,
+  maxZoom: 19,
+  worldCopyJump: false,
+  maxBounds: WORLD_BOUNDS,
+  maxBoundsViscosity: 0.8   // smooth, no snap-back
+}).setView([0, 0], 2);
 
 const baseLayers = {
   "Streets": L.tileLayer(
@@ -39,7 +36,7 @@ L.control.layers(baseLayers, null, { position: "topright" }).addTo(map);
 L.control.scale({ imperial: true, metric: true, position: "bottomleft" }).addTo(map);
 
 /* ============================
- Footprint Pane (below markers/lines)
+ Footprint Pane
 ============================ */
 const FOOTPRINT_PANE = "footprintPane";
 map.createPane(FOOTPRINT_PANE);
@@ -70,44 +67,39 @@ const observerInfo = document.getElementById("observer-info");
 const selectedInfo = document.getElementById("selected-info");
 const footprintToggle = document.getElementById("footprint-toggle");
 
-/* Legacy */
 const info = document.getElementById("info");
 
 /* ============================
  Constants / State
 ============================ */
 const EARTH_RADIUS_KM = 6371;
-const DEFAULT_SAT_LAT = 0; // degrees
-const DEFAULT_SAT_ALT_KM = 35786; // km (GEO approx)
-const MIN_VISIBLE_EL = 0; // degrees
-const MIN_USABLE_EL = 10; // degrees
+const DEFAULT_SAT_LAT = 0;
+const DEFAULT_SAT_ALT_KM = 35786;
+const MIN_VISIBLE_EL = 0;
+const MIN_USABLE_EL = 10;
 const GREAT_CIRCLE_STEPS = 64;
 
-const LABEL_ZOOM_THRESHOLD = 6; // show sat labels when zoomed in OR selected
+const LABEL_ZOOM_THRESHOLD = 6;
 
 let satellites = [];
-let satMarkers = new Map(); // name -> L.Marker
+let satMarkers = new Map();
 let lineLayers = [];
 let sortMode = "lon";
 let elevationCutoff = 0;
 
-// Multi-select
 let selectedSatNames = new Set();
-
-// refit-once flag for footprint auto-fit
 let autoFitFootprints = false;
 
 let lastObserver = { lat: 39.0, lon: -104.0, heightKm: 2.3 };
 
 /* ============================
- Footprint toggle persistence (default OFF)
+ Footprint toggle persistence
 ============================ */
 const FOOTPRINT_STORAGE_KEY = "satFootprintEnabled";
 
 function safeGetFootprintFromStorage() {
   try {
     const v = localStorage.getItem(FOOTPRINT_STORAGE_KEY);
-    if (v === null) return false; // default OFF if not set
     return v === "true";
   } catch {
     return false;
@@ -115,30 +107,25 @@ function safeGetFootprintFromStorage() {
 }
 
 function safeSetFootprintToStorage(val) {
-  try {
-    localStorage.setItem(FOOTPRINT_STORAGE_KEY, val ? "true" : "false");
-  } catch {
-    /* ignore */
-  }
+  try { localStorage.setItem(FOOTPRINT_STORAGE_KEY, val ? "true" : "false"); }
+  catch {}
 }
 
 let footprintEnabled = safeGetFootprintFromStorage();
 if (footprintToggle) footprintToggle.checked = footprintEnabled;
 
 /* ============================
- Shared Antimeridian Helpers (UNIFIED)
+ Antimeridian Helpers
 ============================ */
 const EPS = 1e-9;
 
 function normalizeLon180(lon) {
-  // normalize to (-180, 180], keep 180 not -180 for continuity
   let x = ((lon + 180) % 360 + 360) % 360 - 180;
   if (x === -180) x = 180;
   return x;
 }
 
 function unwrapLon(prevU, lonNorm) {
-  // choose lonNorm + 360k that minimizes jump from prevU
   let best = lonNorm;
   let bestDiff = Math.abs(best - prevU);
 
@@ -153,10 +140,6 @@ function unwrapLon(prevU, lonNorm) {
   return best;
 }
 
-/**
- * Build an unwrapped lon series from raw lon values.
- * Input pts can have lon outside [-180,180] already; we normalize then unwrap.
- */
 function buildUnwrappedSeries(pts) {
   const out = [];
   if (!pts.length) return out;
@@ -169,27 +152,25 @@ function buildUnwrappedSeries(pts) {
   return out;
 }
 
-/**
- * Split an OPEN polyline at antimeridian.
- * Returns segments with lons normalized to [-180,180] and NO zig/zag.
- */
+/* ============================
+ Dateline Splitters
+============================ */
 function splitPolylineAtDateline(pts) {
   if (!Array.isArray(pts) || pts.length < 2) return [];
 
-  // remove consecutive duplicates after lon normalization for stability
   const cleaned = [];
   for (const p of pts) {
-    if (!p || p.length < 2) continue;
+    if (!p) continue;
     const lat = +p[0];
     const lon = +p[1];
     const lonN = normalizeLon180(lon);
     const prev = cleaned[cleaned.length - 1];
-    if (!prev || prev[0] !== lat || normalizeLon180(prev[1]) !== lonN) cleaned.push([lat, lon]);
+    if (!prev || prev[0] !== lat || normalizeLon180(prev[1]) !== lonN)
+      cleaned.push([lat, lon]);
   }
   if (cleaned.length < 2) return [];
 
   const U = buildUnwrappedSeries(cleaned);
-
   const segments = [];
   let seg = [[cleaned[0][0], normalizeLon180(cleaned[0][1])]];
   let zCurr = Math.floor((U[0] + 180) / 360);
@@ -215,18 +196,14 @@ function splitPolylineAtDateline(pts) {
       const t = (boundary - lon1u) / denom;
       const latX = lat1 + t * (lat2 - lat1);
 
-      // end segment on current zone at dateline
       seg.push([latX, lonInZone(boundary, zCurr)]);
       segments.push(seg);
 
-      // advance zone
       zCurr += (z2 > z1) ? 1 : -1;
 
-      // start new segment on opposite dateline
       const startLon = (lonInZone(boundary, zCurr) === 180) ? -180 : 180;
       seg = [[latX, startLon]];
 
-      // continue
       lon1u = boundary + ((z2 > z1) ? EPS : -EPS);
       lat1 = latX;
       z1 = Math.floor((lon1u + 180) / 360);
@@ -236,20 +213,12 @@ function splitPolylineAtDateline(pts) {
   }
 
   if (seg.length >= 2) segments.push(seg);
-
   return segments.filter(s => s.length >= 2);
 }
 
-/**
- * Split a CLOSED ring into one or more CLOSED rings by cutting at dateline,
- * then close each resulting ring by drawing straight along ±180 (meridian seam).
- *
- * Returns array of rings (each closed).
- */
 function splitRingIntoDatelinePolygons(ringPts) {
   if (!Array.isArray(ringPts) || ringPts.length < 4) return [];
 
-  // Ensure input is closed
   const pts = ringPts.slice();
   const f = pts[0];
   const l = pts[pts.length - 1];
@@ -257,20 +226,19 @@ function splitRingIntoDatelinePolygons(ringPts) {
     pts.push([f[0], f[1]]);
   }
 
-  // Remove consecutive duplicates (after normalized lon check)
   const cleaned = [];
   for (const p of pts) {
-    if (!p || p.length < 2) continue;
+    if (!p) continue;
     const lat = +p[0];
     const lon = +p[1];
     const lonN = normalizeLon180(lon);
     const prev = cleaned[cleaned.length - 1];
-    if (!prev || prev[0] !== lat || normalizeLon180(prev[1]) !== lonN) cleaned.push([lat, lon]);
+    if (!prev || prev[0] !== lat || normalizeLon180(prev[1]) !== lonN)
+      cleaned.push([lat, lon]);
   }
   if (cleaned.length < 4) return [];
 
   const U = buildUnwrappedSeries(cleaned);
-
   const segments = [];
   let seg = [[cleaned[0][0], normalizeLon180(cleaned[0][1])]];
   let zCurr = Math.floor((U[0] + 180) / 360);
@@ -320,7 +288,6 @@ function splitRingIntoDatelinePolygons(ringPts) {
     const p = s.pts;
     if (p.length < 3) continue;
 
-    // Decide seam lon by average lon sign
     let sum = 0;
     for (const q of p) sum += q[1];
     const seamLon = (sum / p.length) >= 0 ? 180 : -180;
@@ -329,11 +296,9 @@ function splitRingIntoDatelinePolygons(ringPts) {
     const last = p[p.length - 1];
     const ring = p.slice();
 
-    // Clamp endpoints to seamLon (prevents tiny slants)
     ring[0] = [first[0], seamLon];
     ring[ring.length - 1] = [last[0], seamLon];
 
-    // Close ring exactly once
     const start = ring[0];
     const end = ring[ring.length - 1];
     if (start[0] !== end[0] || start[1] !== end[1]) {
@@ -343,7 +308,6 @@ function splitRingIntoDatelinePolygons(ringPts) {
     if (ring.length >= 4) rings.push(ring);
   }
 
-  // If we never crossed dateline, keep original ring normalized
   if (rings.length === 1) {
     let hasJump = false;
     for (let i = 1; i < cleaned.length; i++) {
@@ -364,7 +328,7 @@ function splitRingIntoDatelinePolygons(ringPts) {
 }
 
 /* ============================
- TRUE Footprints (Boundary Polygons)
+ Footprints
 ============================ */
 const FOOTPRINT_COLORS = [
   "#1a73e8",
@@ -378,9 +342,7 @@ const FOOTPRINT_COLORS = [
 let footprintLayers = new Map();
 
 function clearFootprints() {
-  for (const [, layer] of footprintLayers) {
-    map.removeLayer(layer);
-  }
+  for (const [, layer] of footprintLayers) map.removeLayer(layer);
   footprintLayers.clear();
 }
 
@@ -393,10 +355,9 @@ function horizonAngularRadiusRad(altKm) {
   return Math.acos(Re / r);
 }
 
-// ✅ default steps now 720
 function footprintBoundaryPoints(sat, steps = 720) {
   const lon0 = toRad(sat.lon);
-  const lat0 = toRad((sat.lat ?? DEFAULT_SAT_LAT));
+  const lat0 = toRad(sat.lat ?? DEFAULT_SAT_LAT);
   const altKm = sat.alt_km ?? DEFAULT_SAT_ALT_KM;
 
   const p = horizonAngularRadiusRad(altKm);
@@ -410,7 +371,6 @@ function footprintBoundaryPoints(sat, steps = 720) {
 
     let lat, lon;
 
-    // PDF equatorial GEO form
     if (Math.abs(lat0) < 1e-12) {
       lat = Math.asin(sinp * Math.cos(a));
       lon = lon0 + Math.atan2(Math.sin(a) * sinp, cosp);
@@ -425,11 +385,10 @@ function footprintBoundaryPoints(sat, steps = 720) {
     }
 
     const latDeg = toDeg(lat);
-    const lonDegRaw = toDeg(lon); // keep raw; splitter handles
+    const lonDegRaw = toDeg(lon);
     pts.push([latDeg, lonDegRaw]);
   }
 
-  // Ensure closed
   const first = pts[0];
   const last = pts[pts.length - 1];
   if (first[0] !== last[0] || normalizeLon180(first[1]) !== normalizeLon180(last[1])) {
@@ -437,6 +396,17 @@ function footprintBoundaryPoints(sat, steps = 720) {
   }
 
   return pts;
+}
+
+function fitToFootprints() {
+  try {
+    if (!footprintLayers.size) return;
+    const group = L.featureGroup([...footprintLayers.values()]);
+    const b = group.getBounds();
+    if (b && b.isValid()) {
+      map.fitBounds(b, { padding: [20, 20], maxZoom: 4 });
+    }
+  } catch {}
 }
 
 function updateFootprints() {
@@ -452,11 +422,14 @@ function updateFootprints() {
     const color = FOOTPRINT_COLORS[idx % FOOTPRINT_COLORS.length];
 
     const boundary = footprintBoundaryPoints(sat, 720);
-
     const rings = splitRingIntoDatelinePolygons(boundary);
     if (!rings.length) return;
 
-    const multi = rings.map(r => [r]);
+    const multi = rings
+      .filter(r => r.length >= 4)
+      .map(r => [r]);
+
+    if (!multi.length) return;
 
     const poly = L.polygon(multi, {
       pane: FOOTPRINT_PANE,
@@ -471,28 +444,14 @@ function updateFootprints() {
     footprintLayers.set(sat.name, poly);
   });
 
-  // ✅ one-time fit when requested
   if (footprintEnabled && autoFitFootprints) {
     autoFitFootprints = false;
     fitToFootprints();
   }
 }
 
-function fitToFootprints() {
-  try {
-    if (!footprintLayers || footprintLayers.size === 0) return;
-    const group = L.featureGroup([...footprintLayers.values()]);
-    const b = group.getBounds();
-    if (b && typeof b.isValid === "function" && b.isValid()) {
-      map.fitBounds(b, { padding: [20, 20], maxZoom: 4 });
-    }
-  } catch {
-    /* ignore */
-  }
-}
-
 /* ============================
- Panel Toggle + Pin (with tooltip + persistence)
+ Panel Toggle + Pin
 ============================ */
 const PIN_STORAGE_KEY = "satPanelPinned";
 
@@ -503,7 +462,7 @@ function safeGetPinnedFromStorage() {
 
 function safeSetPinnedToStorage(val) {
   try { localStorage.setItem(PIN_STORAGE_KEY, val ? "true" : "false"); }
-  catch { /* ignore */ }
+  catch {}
 }
 
 let panelPinned = safeGetPinnedFromStorage();
@@ -561,11 +520,13 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closePanel(false);
 });
 
+window.addEventListener("resize", syncPanelPinnedUI);
+
 syncPanelPinnedUI();
 if (panelPinned) openPanel();
 
 /* ============================
- Icons (Material Icons)
+ Icons
 ============================ */
 function userIcon() {
   return L.divIcon({
@@ -598,7 +559,7 @@ const radToDeg = (r) => r * 180 / Math.PI;
 const normAzDeg = (d) => (d % 360 + 360) % 360;
 
 /* ============================
- Great-Circle Path (visual only)
+ Great-Circle Path (Upgraded)
 ============================ */
 function greatCirclePoints(lat1, lon1, lat2, lon2, steps = GREAT_CIRCLE_STEPS) {
   const φ1 = degToRad(lat1), λ1 = degToRad(lon1);
@@ -607,7 +568,6 @@ function greatCirclePoints(lat1, lon1, lat2, lon2, steps = GREAT_CIRCLE_STEPS) {
   const v1 = [Math.cos(φ1) * Math.cos(λ1), Math.cos(φ1) * Math.sin(λ1), Math.sin(φ1)];
   const v2 = [Math.cos(φ2) * Math.cos(λ2), Math.cos(φ2) * Math.sin(λ2), Math.sin(φ2)];
 
-  // ✅ NaN guard
   const rawDot = v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
   if (!isFinite(rawDot)) return [[lat1, lon1], [lat2, lon2]];
 
@@ -627,10 +587,11 @@ function greatCirclePoints(lat1, lon1, lat2, lon2, steps = GREAT_CIRCLE_STEPS) {
     const y = a * v1[1] + b * v2[1];
     const z = a * v1[2] + b * v2[2];
 
-    pts.push([
-      radToDeg(Math.atan2(z, Math.sqrt(x * x + y * y))),
-      radToDeg(Math.atan2(y, x))
-    ]);
+    const lat = radToDeg(Math.atan2(z, Math.sqrt(x * x + y * y)));
+    const lonRaw = radToDeg(Math.atan2(y, x));
+
+    // FIX: Normalize longitude to avoid dateline tearing
+    pts.push([lat, normalizeLon180(lonRaw)]);
   }
 
   return pts;
@@ -644,7 +605,7 @@ function addSatelliteMarkers() {
   satMarkers.clear();
 
   satellites.forEach((sat) => {
-    const marker = L.marker([sat.lat ?? DEFAULT_SAT_LAT, sat.lon], {
+    const marker = L.marker([sat.lat, sat.lon], {
       icon: satIcon(selectedSatNames.has(sat.name))
     }).addTo(map);
 
@@ -692,6 +653,9 @@ function updateLabelVisibility() {
     const tt = marker.getTooltip();
     if (!tt) continue;
 
+    // FIX: Only rebuild when needed (prevents flicker)
+    if (tt.options.permanent === shouldBePermanent) continue;
+
     const content = tt.getContent();
     marker.unbindTooltip();
     marker.bindTooltip(content, {
@@ -705,9 +669,7 @@ function updateLabelVisibility() {
   }
 }
 
-map.on("zoomend", () => {
-  updateLabelVisibility();
-});
+map.on("zoomend", updateLabelVisibility);
 
 /* ============================
  Lines / Table helpers
@@ -727,7 +689,10 @@ function addWrappedPolyline(latlngs, options, bringFront = false) {
   const segs = splitPolylineAtDateline(latlngs);
   const layers = [];
   for (const s of segs) {
-    const pl = L.polyline(s.map(([lat, lon]) => [lat, normalizeLon180(lon)]), options).addTo(map);
+    const pl = L.polyline(
+      s.map(([lat, lon]) => [lat, normalizeLon180(lon)]),
+      options
+    ).addTo(map);
     if (bringFront) pl.bringToFront();
     layers.push(pl);
   }
@@ -773,11 +738,11 @@ function buildTable(rows) {
   satTable.querySelectorAll("tr[data-sat]").forEach((row) => {
     row.addEventListener("click", () => {
       const name = row.getAttribute("data-sat");
+      if (!name) return;
 
       if (selectedSatNames.has(name)) selectedSatNames.delete(name);
       else selectedSatNames.add(name);
 
-      // ✅ issue #1 fix: refit once if footprints enabled
       autoFitFootprints = footprintEnabled;
 
       refreshMarkerSelection();
@@ -846,8 +811,8 @@ function updateLocation(lat, lon, heightKm = 0, setZoom = false) {
   const computed = satellites.map((sat) => {
     const positionEcf = satellite.geodeticToEcf({
       longitude: satellite.degreesToRadians(sat.lon),
-      latitude: satellite.degreesToRadians(sat.lat ?? DEFAULT_SAT_LAT),
-      height: sat.alt_km ?? DEFAULT_SAT_ALT_KM
+      latitude: satellite.degreesToRadians(sat.lat),
+      height: sat.alt_km
     });
     const look = satellite.ecfToLookAngles(observerGd, positionEcf);
     const az = normAzDeg(radToDeg(look.azimuth));
@@ -863,7 +828,6 @@ function updateLocation(lat, lon, heightKm = 0, setZoom = false) {
 
   const filtered = computed.filter(r => r.el >= elevationCutoff);
 
-  // Drop selections that no longer meet cutoff filter (existing behavior)
   const filteredNames = new Set(filtered.map(r => r.sat.name));
   let changed = false;
   for (const name of Array.from(selectedSatNames)) {
@@ -877,7 +841,7 @@ function updateLocation(lat, lon, heightKm = 0, setZoom = false) {
   filtered.forEach((r) => {
     if (r.el <= 0) return;
     const isSelected = selectedSatNames.has(r.sat.name);
-    const pts = greatCirclePoints(lat, lon, r.sat.lat ?? 0, r.sat.lon);
+    const pts = greatCirclePoints(lat, lon, r.sat.lat, r.sat.lon);
 
     const options = {
       color: r.el > MIN_USABLE_EL ? "#1e8e3e" : "#1a73e8",
@@ -902,10 +866,26 @@ function updateLocation(lat, lon, heightKm = 0, setZoom = false) {
 }
 
 /* ============================
- Events
+ Debounce Helper
+============================ */
+function debounce(fn, delay) {
+  let t = null;
+  return (...args) => {
+    clearTimeout(t);
+    t = setTimeout(() => fn(...args), delay);
+  };
+}
+
+const debouncedUpdateLocation = debounce(
+  (lat, lon, heightKm, setZoom) => updateLocation(lat, lon, heightKm, setZoom),
+  16
+);
+
+/* ============================
+ Map + UI Events
 ============================ */
 map.on("click", (e) => {
-  updateLocation(e.latlng.lat, e.latlng.lng, lastObserver.heightKm, false);
+  debouncedUpdateLocation(e.latlng.lat, e.latlng.lng, lastObserver.heightKm, false);
 });
 
 sortSelect.addEventListener("change", () => {
@@ -914,7 +894,8 @@ sortSelect.addEventListener("change", () => {
 });
 
 cutoffSlider.addEventListener("input", () => {
-  elevationCutoff = parseFloat(cutoffSlider.value);
+  const v = parseFloat(cutoffSlider.value);
+  elevationCutoff = isNaN(v) ? 0 : v;
   cutoffValue.textContent = elevationCutoff.toFixed(0);
   cutoffHintValue.textContent = elevationCutoff.toFixed(0);
   updateLocation(lastObserver.lat, lastObserver.lon, lastObserver.heightKm, false);
@@ -936,20 +917,18 @@ if (footprintToggle) {
   footprintToggle.addEventListener("change", () => {
     footprintEnabled = !!footprintToggle.checked;
     safeSetFootprintToStorage(footprintEnabled);
-
-    // ✅ issue #1 fix: refit once when turning ON
     autoFitFootprints = footprintEnabled;
-
     updateFootprints();
   });
 }
 
 /* ============================
- Custom Autocomplete (robust)
+ Autocomplete (Upgraded)
 ============================ */
 let acItems = [];
 let acActiveIndex = -1;
 let acTimer = null;
+const acCache = {};
 
 function hideAutocomplete() {
   if (!autocomplete) return;
@@ -957,6 +936,7 @@ function hideAutocomplete() {
   autocomplete.innerHTML = "";
   acItems = [];
   acActiveIndex = -1;
+  searchInput.removeAttribute("aria-activedescendant");
 }
 
 function renderAutocomplete(items) {
@@ -972,8 +952,13 @@ function renderAutocomplete(items) {
   autocomplete.innerHTML = items.map((p, idx) => {
     const primary = (p.display_name || "").split(",").slice(0, 2).join(",").trim();
     const secondary = (p.display_name || "").split(",").slice(2).join(",").trim();
+    const id = `ac-item-${idx}`;
     return `
-      <div class="autocomplete-item" role="option" data-idx="${idx}">
+      <div class="autocomplete-item"
+           id="${id}"
+           role="option"
+           aria-selected="false"
+           data-idx="${idx}">
         <span class="material-icons">place</span>
         <div>
           <div class="autocomplete-primary">${primary || p.display_name}</div>
@@ -997,39 +982,73 @@ function renderAutocomplete(items) {
 function setActive(idx) {
   if (!autocomplete) return;
   const nodes = autocomplete.querySelectorAll(".autocomplete-item");
-  nodes.forEach(n => n.classList.remove("active"));
+
+  nodes.forEach(n => {
+    n.classList.remove("active");
+    n.setAttribute("aria-selected", "false");
+  });
+
   if (idx >= 0 && idx < nodes.length) {
-    nodes[idx].classList.add("active");
-    nodes[idx].scrollIntoView({ block: "nearest" });
+    const node = nodes[idx];
+    node.classList.add("active");
+    node.setAttribute("aria-selected", "true");
+    node.scrollIntoView({ block: "nearest" });
+    searchInput.setAttribute("aria-activedescendant", node.id);
+  } else {
+    searchInput.removeAttribute("aria-activedescendant");
   }
+
   acActiveIndex = idx;
 }
 
 function chooseAutocomplete(idx) {
   const p = acItems[idx];
   if (!p) return;
+
   searchInput.value = p.display_name || searchInput.value;
   hideAutocomplete();
-  updateLocation(parseFloat(p.lat), parseFloat(p.lon), lastObserver.heightKm, true);
+
+  const lat = parseFloat(p.lat);
+  const lon = parseFloat(p.lon);
+  if (!isNaN(lat) && !isNaN(lon)) {
+    updateLocation(lat, lon, lastObserver.heightKm, true);
+  }
 }
 
 searchInput.addEventListener("input", () => {
   clearTimeout(acTimer);
   const q = searchInput.value.trim();
+
   if (q.length < 3) {
     hideAutocomplete();
     return;
   }
+
+  if (acCache[q]) {
+    renderAutocomplete(acCache[q]);
+    return;
+  }
+
   acTimer = setTimeout(() => {
-    fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=8&addressdetails=1`)
+    fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=8&addressdetails=1`, {
+      headers: {
+        "Accept": "application/json",
+        "User-Agent": "Satellite-Antenna-Tracker/1.0"
+      }
+    })
       .then(res => res.json())
-      .then(data => renderAutocomplete(Array.isArray(data) ? data : []))
+      .then(data => {
+        const items = Array.isArray(data) ? data : [];
+        acCache[q] = items;
+        renderAutocomplete(items);
+      })
       .catch(() => hideAutocomplete());
   }, 300);
 });
 
 searchInput.addEventListener("keydown", (e) => {
   if (!autocomplete || autocomplete.classList.contains("hidden")) return;
+
   if (e.key === "ArrowDown") {
     e.preventDefault();
     setActive(Math.min(acActiveIndex + 1, acItems.length - 1));
@@ -1046,48 +1065,80 @@ searchInput.addEventListener("keydown", (e) => {
   }
 });
 
+/* Close autocomplete when clicking outside */
 document.addEventListener("click", (e) => {
   if (!autocomplete) return;
-  if (!autocomplete.contains(e.target) && e.target !== searchInput) hideAutocomplete();
+  if (!autocomplete.contains(e.target) && e.target !== searchInput) {
+    hideAutocomplete();
+  }
 });
 
 /* ============================
- Load Satellites + Init
+ Satellite Loader (External JSON)
 ============================ */
-fetch("satellites.json")
-  .then(r => r.json())
-  .then(data => {
-    satellites = Array.isArray(data) ? data : [];
-    elevationCutoff = parseFloat(cutoffSlider.value);
-    cutoffValue.textContent = elevationCutoff.toFixed(0);
-    cutoffHintValue.textContent = elevationCutoff.toFixed(0);
 
-    addSatelliteMarkers();
-    updateLocation(lastObserver.lat, lastObserver.lon, lastObserver.heightKm, true);
-  })
-  .catch(err => {
-    console.error("Failed to load satellites.json", err);
-    satellites = [{ name: "Fallback", lon: -104, lat: 0, alt_km: DEFAULT_SAT_ALT_KM }];
-    addSatelliteMarkers();
-    updateLocation(lastObserver.lat, lastObserver.lon, lastObserver.heightKm, true);
-  });
-
-/* Optional: reduce Chrome geolocation warning by only auto-requesting if already granted */
-if (navigator.permissions && navigator.geolocation) {
-  navigator.permissions.query({ name: "geolocation" })
-    .then((perm) => {
-      if (perm.state === "granted") {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => updateLocation(
-            pos.coords.latitude,
-            pos.coords.longitude,
-            (pos.coords.altitude ?? 0) / 1000,
-            true
-          ),
-          () => {},
-          { enableHighAccuracy: true, timeout: 5000 }
-        );
-      }
-    })
-    .catch(() => {});
+/**
+ * Normalizes a satellite entry from satellites.json
+ * - Ensures lat = 0 (GEO)
+ * - Ensures alt_km = 35786 (GEO)
+ */
+function normalizeSatellite(s) {
+  return {
+    name: s.name,
+    lon: Number(s.lon),
+    lat: 0,
+    alt_km: 35786
+  };
 }
+
+/**
+ * Loads satellites into the app
+ */
+function loadSatellites(list) {
+  satellites = list
+    .map(normalizeSatellite)
+    .sort((a, b) => a.lon - b.lon);
+
+  addSatelliteMarkers();
+  updateLocation(lastObserver.lat, lastObserver.lon, lastObserver.heightKm, false);
+}
+
+/* ============================
+ Fetch satellites.json
+============================ */
+function fetchSatellites() {
+  fetch("satellites.json", {
+    headers: {
+      "Accept": "application/json"
+    }
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (!Array.isArray(data)) {
+        console.error("satellites.json is not an array");
+        return;
+      }
+      loadSatellites(data);
+    })
+    .catch(err => {
+      console.error("Failed to load satellites.json:", err);
+    });
+}
+
+/* ============================
+ Final Initialization
+============================ */
+
+// Sync pinned state on load
+syncPanelPinnedUI();
+
+// Render initial observer info
+renderObserverInfo(lastObserver.lat, lastObserver.lon, lastObserver.heightKm);
+
+// Load satellites from external file
+fetchSatellites();
+
+// Apply footprint state on load
+if (footprintEnabled) updateFootprints();
+
+console.log("Satellite Antenna Tracker initialized.");
