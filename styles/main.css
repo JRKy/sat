@@ -323,18 +323,48 @@ html, body {
 .status-bad  { background: var(--bad); color: #fff; }
 
 /* =========================================
-   Leaflet Overrides
+   Leaflet Controls (Layers + Scale)
 ========================================= */
-.leaflet-container {
-  background: #d0d0d0;
+.leaflet-control {
+  z-index: 850 !important;
+}
+
+.leaflet-top.leaflet-left {
+  margin-top: calc(16px + var(--safe-top));
+  margin-left: calc(16px + var(--safe-left));
+}
+
+.leaflet-bottom.leaflet-left {
+  margin-bottom: calc(16px + var(--safe-bottom));
+  margin-left: calc(16px + var(--safe-left));
 }
 
 body.panel-open .leaflet-top.leaflet-right {
-  right: 360px;
+  right: 360px !important;
 }
 
-.leaflet-top.leaflet-right {
-  transition: right 0.25s ease;
+.leaflet-control-layers,
+.leaflet-control-scale {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 6px 8px;
+}
+
+.leaflet-control-layers label {
+  font-size: 14px;
+  color: var(--text);
+}
+
+.leaflet-control-scale-line {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 12px;
+  box-shadow: var(--shadow);
 }
 
 /* =========================================
