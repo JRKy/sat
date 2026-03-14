@@ -3,7 +3,7 @@ export const map = L.map("map", {
   worldCopyJump: true,
   center: [0, 0],
   zoom: 2,
-  zoomControl: false,
+  zoomControl: false,   // we re-add it manually below
   preferCanvas: true
 });
 
@@ -11,6 +11,21 @@ export const map = L.map("map", {
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 19,
   attribution: "&copy; OpenStreetMap contributors"
+}).addTo(map);
+
+// --- Default Leaflet Controls (restored) ---
+
+// Zoom control (top-left, default)
+L.control.zoom({ position: "topleft" }).addTo(map);
+
+// Layer control (top-left)
+L.control.layers(null, null, { position: "topleft" }).addTo(map);
+
+// Scale control (bottom-left)
+L.control.scale({
+  metric: true,
+  imperial: true,
+  position: "bottomleft"
 }).addTo(map);
 
 // --- Panes (rendering layers) ---
@@ -39,10 +54,7 @@ map.createPane(USER_PANE);
 map.getPane(USER_PANE).style.zIndex = 500;
 map.getPane(USER_PANE).style.pointerEvents = "auto";
 
-// Optional: zoom control
-L.control.zoom({ position: "topright" }).addTo(map);
-
-// --- User marker (observer position) ---
+// --- User marker ---
 export const userMarker = L.circleMarker([0, 0], {
   pane: USER_PANE,
   radius: 6,
