@@ -270,6 +270,19 @@ html, body {
   border-bottom: 1px solid var(--border);
   letter-spacing: 0.3px;
   text-transform: uppercase;
+  cursor: pointer;
+}
+
+#sat-table th.sort-asc::after {
+  content: "▲";
+  margin-left: 4px;
+  font-size: 10px;
+}
+
+#sat-table th.sort-desc::after {
+  content: "▼";
+  margin-left: 4px;
+  font-size: 10px;
 }
 
 /* Rows */
@@ -323,15 +336,55 @@ html, body {
 .status-bad  { background: var(--bad); color: #fff; }
 
 /* =========================================
+   Satellite & User Markers + Labels
+========================================= */
+
+.sat-marker span.material-symbols-rounded {
+  font-size: 28px;
+  color: var(--accent);
+}
+
+.sat-marker.selected span.material-symbols-rounded {
+  color: var(--accent-hover);
+}
+
+.user-marker span.material-symbols-rounded {
+  font-size: 36px;
+  color: #d93025;
+}
+
+/* Vertical chip-style satellite labels */
+.sat-label {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  box-shadow: var(--shadow);
+  white-space: nowrap;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.sat-label .name {
+  font-weight: 600;
+  display: block;
+}
+
+.sat-label .center {
+  color: var(--text-muted);
+  display: block;
+  margin-top: 2px;
+}
+
+/* =========================================
    Leaflet Controls (DEFAULT LOOK RESTORED)
 ========================================= */
 
-/* Put controls above the map, below FABs */
 .leaflet-control {
   z-index: 600 !important;
 }
 
-/* Restore default Leaflet spacing */
 .leaflet-top.leaflet-left {
   margin-top: 16px;
   margin-left: 16px;
@@ -347,13 +400,11 @@ html, body {
   margin-right: 16px;
 }
 
-/* Shift right-side controls ONLY when panel is open */
 body.panel-open .leaflet-top.leaflet-right,
 body.panel-open .leaflet-bottom.leaflet-right {
   right: 360px !important;
 }
 
-/* REMOVE Material overrides — restore native Leaflet look */
 .leaflet-control-layers,
 .leaflet-control-scale,
 .leaflet-control-zoom {

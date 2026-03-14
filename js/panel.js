@@ -1,76 +1,179 @@
+// ======================================================
+// events.js
+// Satellite selection, highlighting, panel logic,
+// footprint toggle, cutoff filtering, map sync
+// ======================================================
+
+import { map } from "./map.js";
 import {
-  safeGetPinnedFromStorage,
-  safeSetPinnedToStorage
-} from "./state.js";
+  createWrappedSatelliteMarkers,
+  addSatelliteToMap,
+  removeSatelliteFromMap
+} from "./markers.js";
 
-const satToggleBtn = document.getElementById("sat-toggle");
-const satPanel = document.getElementById("sat-panel");
-const panelCloseBtn = document.getElementById("panel-close");
-const panelPinBtn = document.getElementById("panel-pin");
-const satBackdrop = document.getElementById("sat-backdrop");
+import { updateTable, clearTableSelection } from "./table.js";
 
-let panelPinned = safeGetPinnedFromStorage();
+// ======================================================
+// INTERNAL STATE
+// ======================================================
 
-export function syncPanelPinnedUI() {
-  if (satPanel) satPanel.classList.toggle("pinned", panelPinned);
-  if (panelPinBtn) {
-    panelPinBtn.title = panelPinned ? "Pinned" : "Pin panel";
-    panelPinBtn.setAttribute("aria-label", panelPinned ? "Pinned" : "Pin panel");
+let satellites = [];              // full satellite list
+let activeWrapped = {};           // id → wrapped marker set
+let selectedId = null;
+let showFootprints = false;
+let elevationCutoff = 0;
+
+// DOM elements
+const panel = document.getElementById("sat-panel");
+const backdrop = document.getElementById("sat-backdrop");
+const panelClose = document.getElementById("panel-close");
+const panelPin = document.getElementById("panel-pin");
+const cutoffSlider = document.getElementById("cutoff");
+const cutoffValue = document.getElementById("cutoff-value");
+const footprintToggle = document.getElementById("footprint-toggle");
+
+// ======================================================
+// PANEL LOGIC
+// ======================================================
+
+function openPanel() {
+  panel.classList.add("open");
+  backdrop.classList.add("open");
+  document.body.classList.add("panel-open");
+}
+
+function closePanel() {
+  if (panel.classList.contains("pinned")) return;
+  panel.classList.remove("open");
+  backdrop.classList.remove("open");
+  document.body.classList.remove("panel-open");
+}
+
+panelClose.addEventListener("click", closePanel);
+backdrop.addEventListener("click", closePanel);
+
+panelPin.addEventListener("click", () => {
+  panel.classList.toggle("pinned");
+});
+
+// ======================================================
+// FOOTPRINT TOGGLE
+// ======================================================
+
+footprintToggle.addEventListener("change", () => {
+  showFootprints = footprintToggle.checked;
+  refreshSatellites();
+});
+
+// ======================================================
+// ELEVATION CUTOFF
+// ======================================================
+
+cutoffSlider.addEventListener("input", () => {
+  elevationCutoff = Number(cutoffSlider.value);
+  cutoffValue.textContent = elevationCutoff;
+  refreshSatellites();
+});
+
+// ======================================================
+// SATELLITE FILTERING
+// ======================================================
+
+function filteredSatellites() {
+  return satellites.filter((s) => s.el >= elevationCutoff);
+}
+
+// ======================================================
+// SATELLITE RENDERING
+// ======================================================
+
+function clearAllSatellites() {
+  for (const id in activeWrapped) {
+    removeSatelliteFromMap(activeWrapped[id]);
   }
-  safeSetPinnedToStorage(panelPinned);
+  activeWrapped = {};
 }
 
-export function openPanel() {
-  if (!satPanel) return;
-  satPanel.classList.add("open");
-  document.body.classList.add("panel-open");   // ⭐ NEW
+function renderSatellites() {
+  clearAllSatellites();
 
-  if (satBackdrop) {
-    if (panelPinned) satBackdrop.classList.remove("open");
-    else satBackdrop.classList.add("open");
+  const list = filteredSatellites();
+
+  for (const sat of list) {
+    const wrapped = createWrappedSatelliteMarkers(sat);
+    activeWrapped[sat.id] = wrapped;
+    addSatelliteToMap(wrapped);
+  }
+
+  updateTable(list);
+}
+
+// ======================================================
+// SELECTION + HIGHLIGHT
+// ======================================================
+
+export function highlightSatellite(id) {
+  selectedId = id;
+
+  // Open panel if not already
+  openPanel();
+
+  // Highlight markers
+  for (const sid in activeWrapped) {
+    const wrapped = activeWrapped[sid];
+    for (const w of wrapped) {
+      if (sid === id) {
+        w.marker._icon?.classList.add("selected");
+      } else {
+        w.marker._icon?.classList.remove("selected");
+      }
+    }
   }
 }
 
-export function closePanel(force = false) {
-  if (!satPanel) return;
-  if (panelPinned && !force) return;
-  satPanel.classList.remove("open");
-  document.body.classList.remove("panel-open");  // ⭐ NEW
+export function clearSatelliteHighlight() {
+  selectedId = null;
 
-  if (satBackdrop) satBackdrop.classList.remove("open");
+  for (const sid in activeWrapped) {
+    const wrapped = activeWrapped[sid];
+    for (const w of wrapped) {
+      w.marker._icon?.classList.remove("selected");
+    }
+  }
 }
 
-export function togglePanel() {
-  if (!satPanel) return;
-  if (panelPinned && satPanel.classList.contains("open")) return;
-  if (satPanel.classList.contains("open")) closePanel();
-  else openPanel();
+// ======================================================
+// MAP CLICK → CLEAR SELECTION
+// ======================================================
+
+map.on("click", () => {
+  clearSatelliteHighlight();
+  clearTableSelection();
+});
+
+// ======================================================
+// PUBLIC API
+// ======================================================
+
+/**
+ * Initializes the event system with the full satellite list.
+ */
+export function initEvents(satList) {
+  satellites = satList;
+  renderSatellites();
 }
 
-export function initPanelControls() {
-  satToggleBtn?.addEventListener("click", togglePanel);
+/**
+ * Re-renders satellites after filtering or toggles.
+ */
+export function refreshSatellites() {
+  renderSatellites();
 
-  panelCloseBtn?.addEventListener("click", () => {
-    panelPinned = false;
-    syncPanelPinnedUI();
-    closePanel(true);
-  });
-
-  satBackdrop?.addEventListener("click", () => closePanel(false));
-
-  panelPinBtn?.addEventListener("click", () => {
-    panelPinned = !panelPinned;
-    syncPanelPinnedUI();
-    if (panelPinned) openPanel();
-    else if (satPanel?.classList.contains("open") && satBackdrop) satBackdrop.classList.add("open");
-  });
-
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closePanel(false);
-  });
-
-  window.addEventListener("resize", syncPanelPinnedUI);
-
-  syncPanelPinnedUI();
-  if (panelPinned) openPanel();
+  // Re-highlight selected satellite if still visible
+  if (selectedId && activeWrapped[selectedId]) {
+    highlightSatellite(selectedId);
+  } else {
+    clearSatelliteHighlight();
+    clearTableSelection();
+  }
 }

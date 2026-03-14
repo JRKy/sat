@@ -1,87 +1,169 @@
-import {
-  selectedSatNames
-} from "./state.js";
+// ======================================================
+// table.js
+// Satellite table rendering + sorting + selection
+// ======================================================
 
-const satTable = document.getElementById("sat-table");
-const observerInfo = document.getElementById("observer-info");
-const selectedInfo = document.getElementById("selected-info");
+import { highlightSatellite, clearSatelliteHighlight } from "./events.js";
 
-export function statusClass(status) {
-  if (status === "Good") return "status-pill status-good";
-  if (status === "Low") return "status-pill status-low";
-  return "status-pill status-bad";
-}
+// ======================================================
+// INTERNAL STATE
+// ======================================================
 
-export function buildTable(rows, elevationCutoff) {
-  if (!rows.length) {
-    satTable.innerHTML = `
-      <div style="padding:12px;color:#5f6368;font-size:13px;">
-        No satellites meet the cutoff (El ≥ ${elevationCutoff}°).
-      </div>
-    `;
-    return;
+let tableContainer = null;
+let satellites = [];
+let sortColumn = "name";
+let sortDirection = "asc"; // "asc" or "desc"
+
+// ======================================================
+// SORTING HELPERS
+// ======================================================
+
+function compare(a, b) {
+  const col = sortColumn;
+
+  let v1 = a[col];
+  let v2 = b[col];
+
+  // Numeric columns
+  if (col === "centerLon" || col === "az" || col === "el") {
+    v1 = Number(v1);
+    v2 = Number(v2);
   }
 
-  satTable.innerHTML = `
+  if (v1 < v2) return sortDirection === "asc" ? -1 : 1;
+  if (v1 > v2) return sortDirection === "asc" ? 1 : -1;
+  return 0;
+}
+
+function sortSatellites() {
+  satellites.sort(compare);
+}
+
+// ======================================================
+// TABLE HEADER TEMPLATE
+// ======================================================
+
+function headerCell(label, key) {
+  const isSorted = sortColumn === key;
+  const sortClass = isSorted ? `sort-${sortDirection}` : "";
+
+  return `<th data-col="${key}" class="${sortClass}">${label}</th>`;
+}
+
+// ======================================================
+// TABLE RENDERING
+// ======================================================
+
+function renderTable() {
+  sortSatellites();
+
+  const rows = satellites
+    .map(
+      (sat) => `
+      <tr data-id="${sat.id}">
+        <td>${sat.name}</td>
+        <td>${sat.centerLon.toFixed(1)}°</td>
+        <td>${sat.az.toFixed(1)}°</td>
+        <td>${sat.el.toFixed(1)}°</td>
+        <td>
+          <span class="status-pill status-${sat.status}">
+            ${sat.status.toUpperCase()}
+          </span>
+        </td>
+      </tr>
+    `
+    )
+    .join("");
+
+  tableContainer.innerHTML = `
     <table>
       <thead>
         <tr>
-          <th>Satellite</th>
-          <th>Az</th>
-          <th>El</th>
-          <th>Status</th>
+          ${headerCell("Satellite", "name")}
+          ${headerCell("Center", "centerLon")}
+          ${headerCell("Az", "az")}
+          ${headerCell("El", "el")}
+          ${headerCell("Status", "status")}
         </tr>
       </thead>
       <tbody>
-        ${rows.map(r => {
-          const selected = selectedSatNames.has(r.sat.name) ? "selected" : "";
-          return `
-            <tr class="${selected}" data-sat="${r.sat.name}">
-              <td>${r.sat.name}</td>
-              <td>${r.az.toFixed(1)}°</td>
-              <td>${r.el.toFixed(1)}°</td>
-              <td><span class="${statusClass(r.status)}">${r.status}</span></td>
-            </tr>
-          `;
-        }).join("")}
+        ${rows}
       </tbody>
     </table>
   `;
+
+  attachHeaderEvents();
+  attachRowEvents();
 }
 
-export function renderObserverInfo(lat, lon, heightKm) {
-  if (!observerInfo) return;
-  observerInfo.innerHTML = `
-    <div><b>Lat:</b> ${lat.toFixed(5)}°</div>
-    <div><b>Lon:</b> ${lon.toFixed(5)}°</div>
-    <div class="muted">${heightKm ? `Height: ${heightKm.toFixed(2)} km` : ""}</div>
-  `;
+// ======================================================
+// HEADER CLICK EVENTS (SORTING)
+// ======================================================
+
+function attachHeaderEvents() {
+  const headers = tableContainer.querySelectorAll("th");
+
+  headers.forEach((th) => {
+    th.addEventListener("click", () => {
+      const col = th.dataset.col;
+
+      if (col === sortColumn) {
+        // Toggle direction
+        sortDirection = sortDirection === "asc" ? "desc" : "asc";
+      } else {
+        sortColumn = col;
+        sortDirection = "asc";
+      }
+
+      renderTable();
+    });
+  });
 }
 
-export function renderSelectedInfo(selectedRows) {
-  if (!selectedInfo) return;
+// ======================================================
+// ROW CLICK EVENTS (SELECTION + MAP HIGHLIGHT)
+// ======================================================
 
-  if (!selectedRows || selectedRows.length === 0) {
-    selectedInfo.innerHTML = `<div class="muted">None (tap rows to select)</div>`;
-    return;
-  }
+function attachRowEvents() {
+  const rows = tableContainer.querySelectorAll("tbody tr");
 
-  if (selectedRows.length === 1) {
-    const r = selectedRows[0];
-    selectedInfo.innerHTML = `
-      <div><b>${r.sat.name}</b></div>
-      <div>Az: ${r.az.toFixed(1)}°</div>
-      <div>El: ${r.el.toFixed(1)}°</div>
-      <div class="muted">${r.status}</div>
-    `;
-    return;
-  }
+  rows.forEach((row) => {
+    row.addEventListener("click", () => {
+      const id = row.dataset.id;
 
-  const maxLines = 5;
-  const head = selectedRows.slice(0, maxLines);
-  selectedInfo.innerHTML = `
-    <div><b>${selectedRows.length} satellites selected</b></div>
-    ${head.map(r => `<div>${r.sat.name}: Az ${r.az.toFixed(0)}°, El ${r.el.toFixed(0)}°</div>`).join("")}
-    ${selectedRows.length > maxLines ? `<div class="muted">…and ${selectedRows.length - maxLines} more</div>` : ""}
-  `;
+      // Clear previous selection
+      rows.forEach((r) => r.classList.remove("selected"));
+      row.classList.add("selected");
+
+      highlightSatellite(id);
+    });
+  });
+}
+
+// ======================================================
+// PUBLIC API
+// ======================================================
+
+/**
+ * Initializes the table system.
+ */
+export function initTable(containerId) {
+  tableContainer = document.getElementById(containerId);
+}
+
+/**
+ * Updates the table with a new satellite list.
+ */
+export function updateTable(satList) {
+  satellites = satList;
+  renderTable();
+}
+
+/**
+ * Clears selection (used when clicking map background).
+ */
+export function clearTableSelection() {
+  const rows = tableContainer.querySelectorAll("tbody tr");
+  rows.forEach((r) => r.classList.remove("selected"));
+  clearSatelliteHighlight();
 }
