@@ -184,11 +184,8 @@ export function splitRingIntoDatelinePolygons(ringPts) {
     ring[0] = [first[0], seamLon];
     ring[ring.length - 1] = [last[0], seamLon];
 
-    const start = ring[0];
-    const end = ring[ring.length - 1];
-    if (start[0] !== end[0] || start[1] !== end[1]) {
-      ring.push([start[0], start[1]]);
-    }
+    // ⭐ FIX: Force perfect closure to eliminate artifacts
+    ring[ring.length - 1] = [ring[0][0], ring[0][1]];
 
     if (ring.length >= 4) rings.push(ring);
   }
