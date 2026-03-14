@@ -1,222 +1,179 @@
-import { map, userMarker } from "./map.js";
-import {
-  satellites,
-  selectedSatNames,
-  lineLayers,
-  setLineLayers,
-  lastObserver,
-  setLastObserver,
-  MIN_VISIBLE_EL,
-  MIN_USABLE_EL
-} from "./state.js";
-import { greatCirclePoints } from "./geometry.js";
-import { buildTable, renderObserverInfo, renderSelectedInfo } from "./table.js";
-import { updateFootprints } from "./footprints.js";
-import { openPanel } from "./panel.js";
+// ======================================================
+// events.js
+// Satellite selection, highlighting, panel logic,
+// footprint toggle, cutoff filtering, map sync
+// ======================================================
 
-const sortSelect = document.getElementById("sort");
+import { map } from "./map.js";
+import {
+  createWrappedSatelliteMarkers,
+  addSatelliteToMap,
+  removeSatelliteFromMap
+} from "./markers.js";
+
+import { updateTable, clearTableSelection } from "./table.js";
+
+// ======================================================
+// INTERNAL STATE
+// ======================================================
+
+let satellites = [];              // full satellite list
+let activeWrapped = {};           // id → wrapped marker set
+let selectedId = null;
+let showFootprints = false;
+let elevationCutoff = 0;
+
+// DOM elements
+const panel = document.getElementById("sat-panel");
+const backdrop = document.getElementById("sat-backdrop");
+const panelClose = document.getElementById("panel-close");
+const panelPin = document.getElementById("panel-pin");
 const cutoffSlider = document.getElementById("cutoff");
 const cutoffValue = document.getElementById("cutoff-value");
-const geoBtn = document.getElementById("geo");
 const footprintToggle = document.getElementById("footprint-toggle");
-const satTable = document.getElementById("sat-table");
-const info = document.getElementById("info");
 
-let sortMode = "lon";
-let elevationCutoff = 0;
-let footprintEnabled = footprintToggle ? footprintToggle.checked : false;
+// ======================================================
+// PANEL LOGIC
+// ======================================================
 
-export function getFootprintEnabled() {
-  return footprintEnabled;
+function openPanel() {
+  panel.classList.add("open");
+  backdrop.classList.add("open");
+  document.body.classList.add("panel-open");
 }
 
-function degToRad(d) { return d * Math.PI / 180; }
-function radToDeg(r) { return r * 180 / Math.PI; }
-function normAzDeg(d) { return (d % 360 + 360) % 360; }
-
-/**
- * Remove all LOS lines.
- */
-function clearLines() {
-  lineLayers.forEach((l) => map.removeLayer(l));
-  setLineLayers([]);
+function closePanel() {
+  if (panel.classList.contains("pinned")) return;
+  panel.classList.remove("open");
+  backdrop.classList.remove("open");
+  document.body.classList.remove("panel-open");
 }
 
-/**
- * Unwrap a polyline so longitudes are continuous.
- */
-function unwrapLine(pts) {
-  if (!pts.length) return pts;
-  const out = [pts[0]];
-  let prev = pts[0][1];
+panelClose.addEventListener("click", closePanel);
+backdrop.addEventListener("click", closePanel);
 
-  for (let i = 1; i < pts.length; i++) {
-    let [lat, lon] = pts[i];
+panelPin.addEventListener("click", () => {
+  panel.classList.toggle("pinned");
+});
 
-    while (lon - prev > 180) lon -= 360;
-    while (lon - prev < -180) lon += 360;
+// ======================================================
+// FOOTPRINT TOGGLE
+// ======================================================
 
-    out.push([lat, lon]);
-    prev = lon;
+footprintToggle.addEventListener("change", () => {
+  showFootprints = footprintToggle.checked;
+  refreshSatellites();
+});
+
+// ======================================================
+// ELEVATION CUTOFF
+// ======================================================
+
+cutoffSlider.addEventListener("input", () => {
+  elevationCutoff = Number(cutoffSlider.value);
+  cutoffValue.textContent = elevationCutoff;
+  refreshSatellites();
+});
+
+// ======================================================
+// SATELLITE FILTERING
+// ======================================================
+
+function filteredSatellites() {
+  return satellites.filter((s) => s.el >= elevationCutoff);
+}
+
+// ======================================================
+// SATELLITE RENDERING
+// ======================================================
+
+function clearAllSatellites() {
+  for (const id in activeWrapped) {
+    removeSatelliteFromMap(activeWrapped[id]);
+  }
+  activeWrapped = {};
+}
+
+function renderSatellites() {
+  clearAllSatellites();
+
+  const list = filteredSatellites();
+
+  for (const sat of list) {
+    const wrapped = createWrappedSatelliteMarkers(sat);
+    activeWrapped[sat.id] = wrapped;
+    addSatelliteToMap(wrapped);
   }
 
-  return out;
+  updateTable(list);
 }
 
-/**
- * Draw LOS line repeated across world tiles.
- */
-function addWrappedPolyline(latlngs, options, bringFront = false) {
-  const offsets = [0, 360, -360];
-  const layers = [];
+// ======================================================
+// SELECTION + HIGHLIGHT
+// ======================================================
 
-  offsets.forEach(offset => {
-    const shifted = latlngs.map(([lat, lon]) => [lat, lon + offset]);
+export function highlightSatellite(id) {
+  selectedId = id;
 
-    const pl = L.polyline(shifted, {
-      ...options,
-      noWrap: true
-    }).addTo(map);
+  // Open panel if not already
+  openPanel();
 
-    if (bringFront) pl.bringToFront();
-    layers.push(pl);
-  });
-
-  return layers;
-}
-
-export function updateLocation(lat, lon, heightKm = 0, setZoom = false) {
-  setLastObserver({ lat, lon, heightKm });
-  userMarker.setLatLng([lat, lon]);
-  if (setZoom) map.setView([lat, lon], 12);
-
-  clearLines();
-
-  const observerGd = {
-    longitude: degToRad(lon),
-    latitude: degToRad(lat),
-    height: heightKm
-  };
-
-  const computed = satellites.map((sat) => {
-    const positionEcf = satellite.geodeticToEcf({
-      longitude: degToRad(sat.lon),
-      latitude: degToRad(sat.lat),
-      height: sat.alt_km
-    });
-    const look = satellite.ecfToLookAngles(observerGd, positionEcf);
-    const az = normAzDeg(radToDeg(look.azimuth));
-    const el = radToDeg(look.elevation);
-    const status = el > MIN_USABLE_EL ? "Good" : (el > MIN_VISIBLE_EL ? "Low" : "Bad");
-    return { sat, az, el, status };
-  });
-
-  computed.sort((a, b) => {
-    if (sortMode === "el") return (b.el - a.el) || (a.sat.lon - b.sat.lon);
-    return (a.sat.lon - b.sat.lon) || a.sat.name.localeCompare(b.sat.name);
-  });
-
-  const filtered = computed.filter(r => r.el >= elevationCutoff);
-
-  const filteredNames = new Set(filtered.map(r => r.sat.name));
-  for (const name of Array.from(selectedSatNames)) {
-    if (!filteredNames.has(name)) {
-      selectedSatNames.delete(name);
+  // Highlight markers
+  for (const sid in activeWrapped) {
+    const wrapped = activeWrapped[sid];
+    for (const w of wrapped) {
+      if (sid === id) {
+        w.marker._icon?.classList.add("selected");
+      } else {
+        w.marker._icon?.classList.remove("selected");
+      }
     }
   }
-
-  const newLineLayers = [];
-  filtered.forEach((r) => {
-    if (r.el <= 0) return;
-
-    const isSelected = selectedSatNames.has(r.sat.name);
-
-    // Great-circle path, unwrapped for continuity
-    const pts = unwrapLine(greatCirclePoints(lat, lon, r.sat.lat, r.sat.lon));
-
-    const options = {
-      color: r.el > MIN_USABLE_EL ? "#1e8e3e" : "#1a73e8",
-      weight: isSelected ? 5 : 3,
-      opacity: isSelected ? 0.95 : 0.70,
-      dashArray: r.el > MIN_USABLE_EL ? null : "5,5"
-    };
-
-    const segLayers = addWrappedPolyline(pts, options, isSelected);
-    newLineLayers.push(...segLayers);
-  });
-
-  setLineLayers(newLineLayers);
-
-  buildTable(filtered, elevationCutoff);
-
-  const selectedRows = computed.filter(r => selectedSatNames.has(r.sat.name));
-  renderObserverInfo(lat, lon, heightKm);
-  renderSelectedInfo(selectedRows);
-
-  updateFootprints(footprintEnabled);
-
-  if (info) info.innerHTML = "";
 }
 
-function debounce(fn, delay) {
-  let t = null;
-  return (...args) => {
-    clearTimeout(t);
-    t = setTimeout(() => fn(...args), delay);
-  };
-}
+export function clearSatelliteHighlight() {
+  selectedId = null;
 
-const debouncedUpdateLocation = debounce(
-  (lat, lon, heightKm, setZoom) => updateLocation(lat, lon, heightKm, setZoom),
-  16
-);
-
-export function initEvents() {
-  map.on("click", (e) => {
-    debouncedUpdateLocation(e.latlng.lat, e.latlng.lng, lastObserver.heightKm, false);
-  });
-
-  sortSelect.addEventListener("change", () => {
-    sortMode = sortSelect.value;
-    updateLocation(lastObserver.lat, lastObserver.lon, lastObserver.heightKm, false);
-  });
-
-  cutoffSlider.addEventListener("input", () => {
-    const v = parseFloat(cutoffSlider.value);
-    elevationCutoff = isNaN(v) ? 0 : v;
-    cutoffValue.textContent = elevationCutoff.toFixed(0);
-    updateLocation(lastObserver.lat, lastObserver.lon, lastObserver.heightKm, false);
-  });
-
-  geoBtn.addEventListener("click", () => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition((pos) => {
-      updateLocation(
-        pos.coords.latitude,
-        pos.coords.longitude,
-        (pos.coords.altitude ?? 0) / 1000,
-        true
-      );
-    });
-  });
-
-  if (footprintToggle) {
-    footprintToggle.addEventListener("change", () => {
-      footprintEnabled = !!footprintToggle.checked;
-      updateFootprints(footprintEnabled);
-    });
+  for (const sid in activeWrapped) {
+    const wrapped = activeWrapped[sid];
+    for (const w of wrapped) {
+      w.marker._icon?.classList.remove("selected");
+    }
   }
+}
 
-  satTable.addEventListener("click", (e) => {
-    const row = e.target.closest("tr[data-sat]");
-    if (!row) return;
-    const name = row.getAttribute("data-sat");
-    if (!name) return;
+// ======================================================
+// MAP CLICK → CLEAR SELECTION
+// ======================================================
 
-    if (selectedSatNames.has(name)) selectedSatNames.delete(name);
-    else selectedSatNames.add(name);
+map.on("click", () => {
+  clearSatelliteHighlight();
+  clearTableSelection();
+});
 
-    updateLocation(lastObserver.lat, lastObserver.lon, lastObserver.heightKm, false);
-    openPanel();
-  });
+// ======================================================
+// PUBLIC API
+// ======================================================
+
+/**
+ * Initializes the event system with the full satellite list.
+ */
+export function initEvents(satList) {
+  satellites = satList;
+  renderSatellites();
+}
+
+/**
+ * Re-renders satellites after filtering or toggles.
+ */
+export function refreshSatellites() {
+  renderSatellites();
+
+  // Re-highlight selected satellite if still visible
+  if (selectedId && activeWrapped[selectedId]) {
+    highlightSatellite(selectedId);
+  } else {
+    clearSatelliteHighlight();
+    clearTableSelection();
+  }
 }
