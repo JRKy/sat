@@ -41,3 +41,14 @@ map.getPane(USER_PANE).style.pointerEvents = "auto";
 
 // Optional: zoom control
 L.control.zoom({ position: "topright" }).addTo(map);
+
+// --- User marker (observer position) ---
+export const userMarker = L.circleMarker([0, 0], {
+  pane: USER_PANE,
+  radius: 6,
+  color: "#ff5722",
+  weight: 3,
+  fillColor: "#ff5722",
+  fillOpacity: 0.9,
+  noWrap: true
+}).addTo(map);

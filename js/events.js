@@ -1,4 +1,4 @@
-import { map } from "./map.js";
+import { map, userMarker } from "./map.js";
 import {
   satellites,
   selectedSatNames,
@@ -9,7 +9,6 @@ import {
   MIN_VISIBLE_EL,
   MIN_USABLE_EL
 } from "./state.js";
-import { userMarker } from "./markers.js";
 import { splitPolylineAtDateline, greatCirclePoints, normalizeLon180 } from "./geometry.js";
 import { buildTable, renderObserverInfo, renderSelectedInfo } from "./table.js";
 import { updateFootprints } from "./footprints.js";
@@ -18,7 +17,6 @@ import { openPanel } from "./panel.js";
 const sortSelect = document.getElementById("sort");
 const cutoffSlider = document.getElementById("cutoff");
 const cutoffValue = document.getElementById("cutoff-value");
-// Removed: const cutoffHintValue = document.getElementById("cutoff-hint-value");
 const geoBtn = document.getElementById("geo");
 const footprintToggle = document.getElementById("footprint-toggle");
 const satTable = document.getElementById("sat-table");
@@ -89,11 +87,9 @@ export function updateLocation(lat, lon, heightKm = 0, setZoom = false) {
   const filtered = computed.filter(r => r.el >= elevationCutoff);
 
   const filteredNames = new Set(filtered.map(r => r.sat.name));
-  let changed = false;
   for (const name of Array.from(selectedSatNames)) {
     if (!filteredNames.has(name)) {
       selectedSatNames.delete(name);
-      changed = true;
     }
   }
 
@@ -153,7 +149,6 @@ export function initEvents() {
     const v = parseFloat(cutoffSlider.value);
     elevationCutoff = isNaN(v) ? 0 : v;
     cutoffValue.textContent = elevationCutoff.toFixed(0);
-    // Removed: cutoffHintValue.textContent = elevationCutoff.toFixed(0);
     updateLocation(lastObserver.lat, lastObserver.lon, lastObserver.heightKm, false);
   });
 

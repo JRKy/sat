@@ -1,8 +1,7 @@
 import { map, SAT_PANE } from "./map.js";
 import {
   satellites,
-  selectedSatNames,
-  lastObserver
+  selectedSatNames
 } from "./state.js";
 
 let satMarkerLayers = new Map();
@@ -60,4 +59,11 @@ export function updateSatMarkers() {
     const group = L.layerGroup(layers).addTo(map);
     satMarkerLayers.set(sat.name, group);
   });
+}
+
+/**
+ * Backwards-compatible entry point for satellites.js
+ */
+export function addSatelliteMarkers() {
+  updateSatMarkers();
 }
