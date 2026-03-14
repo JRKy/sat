@@ -2,178 +2,74 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Satellite Antenna Tracker</title>
 
-  <base href="./">
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="libs/leaflet/leaflet.css">
 
-  <meta name="theme-color" content="#ffffff">
+  <!-- Your styles -->
+  <link rel="stylesheet" href="styles/main.css">
 
-  <!-- Favicons -->
-  <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="icon" href="favicon.ico" sizes="any">
-
-  <!-- Leaflet -->
-  <link rel="preload" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" as="style">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
-
-  <!-- Google Material Icons -->
-  <link rel="stylesheet"
-        href="https://fonts.googleapis.com/icon?family=Material+Icons&display=swap">
-
-  <!-- App styles -->
-  <link rel="stylesheet" href="styles.css">
+  <!-- Material Icons -->
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 </head>
+
 <body>
 
-  <noscript>
-    <style>#map { display:none; }</style>
-    <div style="padding:20px;font-size:16px;">
-      This app requires JavaScript to run.
-    </div>
-  </noscript>
-
-  <!-- Top App Bar -->
-  <header id="app-bar">
-    <div class="app-left">
-
-      <!-- Logo -->
-      <div class="app-logo" title="Satellite Antenna Tracker">
-        <img src="logo.svg" alt="Satellite Antenna Tracker logo">
-      </div>
-
-      <div class="search-wrap">
-        <div class="search-container" title="Search location">
-          <span class="material-icons">search</span>
-          <input id="search" type="text" placeholder="Search location" autocomplete="off">
-        </div>
-
-        <div id="autocomplete"
-             class="autocomplete hidden"
-             role="listbox"
-             aria-label="Location suggestions"></div>
-      </div>
-
-      <button id="geo"
-              class="icon-btn"
-              type="button"
-              title="Use current location"
-              aria-label="Use current location">
-        <span class="material-icons">my_location</span>
-      </button>
-
-      <button id="sat-toggle"
-              class="icon-btn"
-              type="button"
-              title="Satellites"
-              aria-label="Satellites">
-        <span class="material-icons">satellite_alt</span>
-      </button>
-
-    </div>
-  </header>
-
-  <!-- Map -->
+  <!-- Map container -->
   <div id="map"></div>
 
-  <!-- Backdrop -->
-  <div id="sat-backdrop" class="sat-backdrop"></div>
-
   <!-- Satellite Panel -->
-  <aside id="sat-panel" aria-label="Satellite panel">
+  <div id="sat-panel" class="panel">
     <div class="panel-header">
-      <div class="panel-title">
-        <span class="material-icons">satellite_alt</span>
-        <span>Satellites</span>
-      </div>
-
-      <div class="panel-actions">
-        <label class="select-wrap" title="Sort satellites">
-          <span class="material-icons">sort</span>
-          <select id="sort" aria-label="Sort satellites">
-            <option value="lon" selected>Longitude</option>
-            <option value="el">Elevation</option>
-          </select>
-        </label>
-
-        <button id="panel-pin"
-                class="icon-btn"
-                type="button"
-                title="Pin panel"
-                aria-label="Pin panel">
-          <span class="material-icons">push_pin</span>
-        </button>
-
-        <button id="panel-close"
-                class="icon-btn"
-                type="button"
-                title="Close"
-                aria-label="Close">
-          <span class="material-icons">close</span>
-        </button>
-      </div>
+      <button id="panel-close" class="icon-btn"><span class="material-icons">close</span></button>
+      <button id="panel-pin" class="icon-btn"><span class="material-icons">push_pin</span></button>
     </div>
 
-    <div class="panel-body">
+    <div class="panel-content">
+      <div id="observer-info"></div>
+      <div id="selected-info"></div>
 
-      <section class="panel-info-row">
-        <div class="info-card">
-          <div class="section-title">Observer</div>
-          <div id="observer-info" class="section-body">
-            <div class="muted">Click map to set observer location.</div>
-          </div>
-        </div>
+      <label>Sort:
+        <select id="sort">
+          <option value="lon">Longitude</option>
+          <option value="el">Elevation</option>
+        </select>
+      </label>
 
-        <div class="info-card">
-          <div class="section-title">Selection</div>
-          <div id="selected-info" class="section-body">
-            <div class="muted">None (tap a row)</div>
-          </div>
-        </div>
-      </section>
-
-      <section class="panel-section">
-
-        <div class="toggle-row">
-          <div class="toggle-text">
-            <div class="toggle-title">Footprint</div>
-            <div class="toggle-subtitle">Show coverage area for selected satellite</div>
-          </div>
-
-          <label class="switch" aria-label="Toggle footprint">
-            <input id="footprint-toggle" type="checkbox">
-            <span class="slider"></span>
-          </label>
-        </div>
-
-        <div class="cutoff-row">
-          <span class="cutoff-label">Elevation cutoff</span>
-          <span class="cutoff-value"><span id="cutoff-value">0</span>°</span>
-        </div>
-
-        <input id="cutoff"
-               type="range"
-               min="0"
-               max="30"
-               step="1"
-               value="0"
-               aria-label="Elevation cutoff slider">
-
-        <div class="cutoff-hint">
-          Showing satellites with El ≥ <span id="cutoff-hint-value">0</span>°
-        </div>
-      </section>
+      <label>Elevation Cutoff:
+        <input type="range" id="cutoff" min="0" max="90" value="0">
+        <span id="cutoff-value">0</span>°
+      </label>
 
       <div id="sat-table"></div>
     </div>
-  </aside>
+  </div>
 
-  <!-- Legacy (hidden) -->
-  <div id="info"></div>
+  <div id="sat-backdrop"></div>
 
-  <!-- JS -->
-  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/satellite.js@6.0.2/dist/satellite.min.js" defer></script>
-  <script src="app.js" defer></script>
+  <!-- Search + Autocomplete -->
+  <div id="search-container">
+    <input id="search" type="text" placeholder="Search location…">
+    <div id="autocomplete" class="hidden"></div>
+  </div>
+
+  <!-- Buttons -->
+  <button id="geo" class="floating-btn"><span class="material-icons">my_location</span></button>
+  <button id="sat-toggle" class="floating-btn"><span class="material-icons">satellite_alt</span></button>
+  <label id="footprint-label">
+    <input type="checkbox" id="footprint-toggle">
+    Show Footprints
+  </label>
+
+  <!-- Leaflet JS -->
+  <script src="libs/leaflet/leaflet.js"></script>
+
+  <!-- Satellite.js -->
+  <script src="libs/satellite/satellite.min.js"></script>
+
+  <!-- Your modular app -->
+  <script type="module" src="js/app.js"></script>
+
 </body>
 </html>
