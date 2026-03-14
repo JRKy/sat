@@ -9,7 +9,7 @@ import {
   MIN_VISIBLE_EL,
   MIN_USABLE_EL
 } from "./state.js";
-import { splitPolylineAtDateline, greatCirclePoints, normalizeLon180 } from "./geometry.js";
+import { greatCirclePoints } from "./geometry.js";
 import { buildTable, renderObserverInfo, renderSelectedInfo } from "./table.js";
 import { updateFootprints } from "./footprints.js";
 import { openPanel } from "./panel.js";
@@ -34,22 +34,54 @@ function degToRad(d) { return d * Math.PI / 180; }
 function radToDeg(r) { return r * 180 / Math.PI; }
 function normAzDeg(d) { return (d % 360 + 360) % 360; }
 
+/**
+ * Remove all LOS lines.
+ */
 function clearLines() {
   lineLayers.forEach((l) => map.removeLayer(l));
   setLineLayers([]);
 }
 
+/**
+ * Unwrap a polyline so longitudes are continuous.
+ */
+function unwrapLine(pts) {
+  if (!pts.length) return pts;
+  const out = [pts[0]];
+  let prev = pts[0][1];
+
+  for (let i = 1; i < pts.length; i++) {
+    let [lat, lon] = pts[i];
+
+    while (lon - prev > 180) lon -= 360;
+    while (lon - prev < -180) lon += 360;
+
+    out.push([lat, lon]);
+    prev = lon;
+  }
+
+  return out;
+}
+
+/**
+ * Draw LOS line repeated across world tiles.
+ */
 function addWrappedPolyline(latlngs, options, bringFront = false) {
-  const segs = splitPolylineAtDateline(latlngs);
+  const offsets = [0, 360, -360];
   const layers = [];
-  for (const s of segs) {
-    const pl = L.polyline(
-      s.map(([lat, lon]) => [lat, normalizeLon180(lon)]),
-      options
-    ).addTo(map);
+
+  offsets.forEach(offset => {
+    const shifted = latlngs.map(([lat, lon]) => [lat, lon + offset]);
+
+    const pl = L.polyline(shifted, {
+      ...options,
+      noWrap: true
+    }).addTo(map);
+
     if (bringFront) pl.bringToFront();
     layers.push(pl);
-  }
+  });
+
   return layers;
 }
 
@@ -96,8 +128,11 @@ export function updateLocation(lat, lon, heightKm = 0, setZoom = false) {
   const newLineLayers = [];
   filtered.forEach((r) => {
     if (r.el <= 0) return;
+
     const isSelected = selectedSatNames.has(r.sat.name);
-    const pts = greatCirclePoints(lat, lon, r.sat.lat, r.sat.lon);
+
+    // Great-circle path, unwrapped for continuity
+    const pts = unwrapLine(greatCirclePoints(lat, lon, r.sat.lat, r.sat.lon));
 
     const options = {
       color: r.el > MIN_USABLE_EL ? "#1e8e3e" : "#1a73e8",
@@ -109,6 +144,7 @@ export function updateLocation(lat, lon, heightKm = 0, setZoom = false) {
     const segLayers = addWrappedPolyline(pts, options, isSelected);
     newLineLayers.push(...segLayers);
   });
+
   setLineLayers(newLineLayers);
 
   buildTable(filtered, elevationCutoff);
