@@ -4,11 +4,13 @@
   <meta charset="UTF-8" />
   <title>Satellite Antenna Tracker</title>
 
-  <!-- Leaflet CSS (CDN, no integrity) -->
+  <!-- Leaflet CSS -->
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
   />
+
+  <!-- Leaflet.Geodesic CSS (none required, but plugin JS needed below) -->
 
   <!-- Your styles -->
   <link rel="stylesheet" href="styles/main.css">
@@ -45,7 +47,6 @@
         <span id="cutoff-value">0</span>°
       </label>
 
-      <!-- Footprints moved back into panel -->
       <label class="panel-footprint">
         <input type="checkbox" id="footprint-toggle">
         Show Footprints
@@ -57,7 +58,7 @@
 
   <div id="sat-backdrop"></div>
 
-  <!-- Search + Autocomplete -->
+  <!-- Search -->
   <div id="search-container">
     <input id="search" type="text" placeholder="Search location…">
     <div id="autocomplete" class="hidden"></div>
@@ -67,10 +68,13 @@
   <button id="geo" class="floating-btn"><span class="material-icons">my_location</span></button>
   <button id="sat-toggle" class="floating-btn"><span class="material-icons">satellite_alt</span></button>
 
-  <!-- Leaflet JS (CDN, no integrity) -->
+  <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <!-- Satellite.js (CDN) -->
+  <!-- Leaflet.Geodesic plugin -->
+  <script src="https://unpkg.com/leaflet.geodesic"></script>
+
+  <!-- Satellite.js -->
   <script src="https://unpkg.com/satellite.js/dist/satellite.min.js"></script>
 
   <!-- Your modular app -->
