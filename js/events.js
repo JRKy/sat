@@ -18,7 +18,7 @@ import { openPanel } from "./panel.js";
 const sortSelect = document.getElementById("sort");
 const cutoffSlider = document.getElementById("cutoff");
 const cutoffValue = document.getElementById("cutoff-value");
-const cutoffHintValue = document.getElementById("cutoff-hint-value");
+// Removed: const cutoffHintValue = document.getElementById("cutoff-hint-value");
 const geoBtn = document.getElementById("geo");
 const footprintToggle = document.getElementById("footprint-toggle");
 const satTable = document.getElementById("sat-table");
@@ -97,10 +97,6 @@ export function updateLocation(lat, lon, heightKm = 0, setZoom = false) {
     }
   }
 
-  if (changed) {
-    // markers module will refresh via external call if needed
-  }
-
   const newLineLayers = [];
   filtered.forEach((r) => {
     if (r.el <= 0) return;
@@ -157,7 +153,7 @@ export function initEvents() {
     const v = parseFloat(cutoffSlider.value);
     elevationCutoff = isNaN(v) ? 0 : v;
     cutoffValue.textContent = elevationCutoff.toFixed(0);
-    cutoffHintValue.textContent = elevationCutoff.toFixed(0);
+    // Removed: cutoffHintValue.textContent = elevationCutoff.toFixed(0);
     updateLocation(lastObserver.lat, lastObserver.lon, lastObserver.heightKm, false);
   });
 
