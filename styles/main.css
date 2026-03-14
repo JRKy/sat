@@ -82,7 +82,8 @@ html, body {
 #search-container {
   position: absolute;
   top: calc(16px + var(--safe-top));
-  left: calc(16px + var(--safe-left));
+  left: 50%;
+  transform: translateX(-50%);
   width: 320px;
   z-index: 900;
 }
@@ -203,6 +204,15 @@ html, body {
   flex: 1;
 }
 
+/* Footprint toggle inside panel */
+.panel-footprint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0;
+  font-size: 14px;
+}
+
 /* =========================================
    Observer + Selected Info
 ========================================= */
@@ -262,26 +272,19 @@ html, body {
 .status-bad  { background: var(--bad); }
 
 /* =========================================
-   Footprint Toggle
-========================================= */
-#footprint-label {
-  position: absolute;
-  bottom: calc(140px + var(--safe-bottom));
-  right: calc(16px + var(--safe-right));
-  background: var(--bg);
-  padding: 8px 12px;
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow);
-  font-size: 14px;
-  z-index: 900;
-}
-
-/* =========================================
    Leaflet Overrides
 ========================================= */
 .leaflet-container {
   background: #d0d0d0;
+}
+
+/* Shift map controls left when panel is open */
+#sat-panel.open ~ .leaflet-top.leaflet-right {
+  right: 360px;
+}
+
+.leaflet-top.leaflet-right {
+  transition: right 0.25s ease;
 }
 
 .sat-marker span.material-icons {
@@ -317,7 +320,7 @@ html, body {
 }
 
 /* =========================================
-   Scrollbars (nice touch)
+   Scrollbars
 ========================================= */
 ::-webkit-scrollbar {
   width: 8px;

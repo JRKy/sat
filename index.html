@@ -45,6 +45,12 @@
         <span id="cutoff-value">0</span>°
       </label>
 
+      <!-- Footprints moved back into panel -->
+      <label class="panel-footprint">
+        <input type="checkbox" id="footprint-toggle">
+        Show Footprints
+      </label>
+
       <div id="sat-table"></div>
     </div>
   </div>
@@ -60,10 +66,6 @@
   <!-- Buttons -->
   <button id="geo" class="floating-btn"><span class="material-icons">my_location</span></button>
   <button id="sat-toggle" class="floating-btn"><span class="material-icons">satellite_alt</span></button>
-  <label id="footprint-label">
-    <input type="checkbox" id="footprint-toggle">
-    Show Footprints
-  </label>
 
   <!-- Leaflet JS (CDN, no integrity) -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
