@@ -184,7 +184,7 @@ export function splitRingIntoDatelinePolygons(ringPts) {
     ring[0] = [first[0], seamLon];
     ring[ring.length - 1] = [last[0], seamLon];
 
-    // ⭐ FIX: Force perfect closure to eliminate artifacts
+    // Force perfect closure
     ring[ring.length - 1] = [ring[0][0], ring[0][1]];
 
     if (ring.length >= 4) rings.push(ring);
@@ -261,7 +261,7 @@ export function footprintBoundaryPoints(sat, steps = 720) {
   const sinp = Math.sin(p);
   const cosp = Math.cos(p);
 
-  const pts = [];
+  const raw = [];
 
   for (let i = 0; i <= steps; i++) {
     const a = (i / steps) * 2 * Math.PI;
@@ -281,16 +281,27 @@ export function footprintBoundaryPoints(sat, steps = 720) {
       );
     }
 
-    const latDeg = toDeg(lat);
-    const lonDegRaw = toDeg(lon);
-    pts.push([latDeg, lonDegRaw]);
+    raw.push([toDeg(lat), toDeg(lon)]);
   }
 
-  const first = pts[0];
-  const last = pts[pts.length - 1];
-  if (first[0] !== last[0] || normalizeLon180(first[1]) !== normalizeLon180(last[1])) {
-    pts.push([first[0], first[1]]);
+  // Smooth the ring by unwrapping longitudes
+  const unwrapped = [];
+  let prev = normalizeLon180(raw[0][1]);
+  unwrapped.push([raw[0][0], prev]);
+
+  for (let i = 1; i < raw.length; i++) {
+    const lat = raw[i][0];
+    const lonN = normalizeLon180(raw[i][1]);
+    const lonU = unwrapLon(prev, lonN);
+    unwrapped.push([lat, lonU]);
+    prev = lonU;
   }
 
-  return pts;
+  // Re-normalize into [-180,180]
+  const final = unwrapped.map(([lat, lonU]) => [lat, normalizeLon180(lonU)]);
+
+  // Force perfect closure
+  final[final.length - 1] = [final[0][0], final[0][1]];
+
+  return final;
 }
