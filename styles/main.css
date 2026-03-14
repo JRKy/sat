@@ -240,51 +240,87 @@ html, body {
 }
 
 /* =========================================
-   Satellite Table (Material Data Table)
+   Satellite Table — Material Data Table
 ========================================= */
+#sat-table {
+  margin-top: 12px;
+}
+
 #sat-table table {
   width: 100%;
   border-collapse: collapse;
   font-size: 15px;
+  background: var(--bg);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+/* Header */
+#sat-table thead {
+  background: var(--bg-panel-header);
 }
 
 #sat-table th {
   text-align: left;
-  padding: 8px 6px;
-  border-bottom: 2px solid var(--border);
+  padding: 12px 10px;
   font-weight: 600;
-}
-
-#sat-table td {
-  padding: 8px 6px;
+  font-size: 14px;
+  color: var(--text-muted);
   border-bottom: 1px solid var(--border);
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
 }
 
-#sat-table tr {
+/* Rows */
+#sat-table tbody tr {
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.15s ease, border-left 0.15s ease;
 }
 
-#sat-table tr:hover {
+#sat-table tbody tr:hover {
   background: var(--bg-hover);
 }
 
-#sat-table tr.selected {
-  background: rgba(26,115,232,0.12);
+/* Selected row with Material left indicator */
+#sat-table tbody tr.selected {
+  background: rgba(26,115,232,0.10);
   border-left: 4px solid var(--accent);
+}
+
+/* Cells */
+#sat-table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+  font-size: 15px;
+}
+
+/* Last row cleanup */
+#sat-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Status pill alignment */
+#sat-table td:last-child {
+  text-align: right;
 }
 
 /* Status Pills */
 .status-pill {
-  padding: 3px 10px;
+  padding: 4px 12px;
   border-radius: 12px;
   font-size: 12px;
-  color: #fff;
+  font-weight: 600;
+  display: inline-block;
+  min-width: 70px;
+  text-align: center;
+  letter-spacing: 0.2px;
 }
 
-.status-good { background: var(--good); }
+.status-good { background: var(--good); color: #fff; }
 .status-low  { background: var(--low); color: #000; }
-.status-bad  { background: var(--bad); }
+.status-bad  { background: var(--bad); color: #fff; }
 
 /* =========================================
    Leaflet Overrides
