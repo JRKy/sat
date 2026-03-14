@@ -6,7 +6,8 @@ import {
 } from "./state.js";
 import {
   splitRingIntoDatelinePolygons,
-  footprintBoundaryPoints
+  footprintBoundaryPoints,
+  greatCirclePoints
 } from "./geometry.js";
 
 const FOOTPRINT_COLORS = [
@@ -36,6 +37,29 @@ export function fitToFootprints() {
   } catch {}
 }
 
+/**
+ * Convert a ring of lat/lon points into a geodesic polyline
+ * by interpolating great-circle segments between each pair.
+ */
+function geodesicPolylineFromRing(ring, stepsPerSegment = 8) {
+  const pts = [];
+
+  for (let i = 0; i < ring.length - 1; i++) {
+    const [lat1, lon1] = ring[i];
+    const [lat2, lon2] = ring[i + 1];
+
+    const seg = greatCirclePoints(lat1, lon1, lat2, lon2, stepsPerSegment);
+    for (let j = 0; j < seg.length - 1; j++) {
+      pts.push(seg[j]);
+    }
+  }
+
+  // Close the ring
+  pts.push(pts[0]);
+
+  return pts;
+}
+
 export function updateFootprints(footprintEnabled) {
   clearFootprints();
   if (!footprintEnabled) return;
@@ -55,26 +79,35 @@ export function updateFootprints(footprintEnabled) {
     const rings = splitRingIntoDatelinePolygons(boundary);
     if (!rings.length) return;
 
-    // 3. Convert rings to geodesic format
-    const geodesicSegments = rings.map(r => {
-      return r.map(([lat, lon]) => [lat, lon]);
+    const layerGroup = L.layerGroup().addTo(map);
+
+    rings.forEach(ring => {
+      // 3. Convert ring into geodesic polyline
+      const geoPts = geodesicPolylineFromRing(ring, 8);
+
+      // 4. Draw outline
+      L.polyline(geoPts, {
+        pane: FOOTPRINT_PANE,
+        color,
+        weight: 2,
+        opacity: 0.85,
+        smoothFactor: 1.0,
+        interactive: false
+      }).addTo(layerGroup);
+
+      // 5. Draw filled polygon (still using polyline points)
+      L.polygon(geoPts, {
+        pane: FOOTPRINT_PANE,
+        color,
+        weight: 1,
+        opacity: 0.0,
+        fillColor: color,
+        fillOpacity: 0.06,
+        interactive: false
+      }).addTo(layerGroup);
     });
 
-    // 4. Draw using Leaflet.Geodesic
-    const geo = L.geodesic(geodesicSegments, {
-      pane: FOOTPRINT_PANE,
-      weight: 2,
-      opacity: 0.85,
-      color,
-      fill: true,
-      fillColor: color,
-      fillOpacity: 0.06,
-      wrap: true,
-      steps: 256,   // smooth curve
-      interactive: false
-    }).addTo(map);
-
-    footprintLayers.set(sat.name, geo);
+    footprintLayers.set(sat.name, layerGroup);
   });
 
   if (footprintEnabled && autoFitFootprints) {
