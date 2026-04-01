@@ -3,8 +3,6 @@
 // Map initialization, base layers, panes, user marker.
 // ======================================================
 
-import { createUserMarker } from "./markers.js";
-
 // ── Base tile layers ───────────────────────────────────
 const street = L.tileLayer(
   "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
@@ -66,6 +64,13 @@ map.getPane(USER_PANE).style.zIndex = 500;
 map.getPane(USER_PANE).style.pointerEvents = "auto";
 
 // ── User marker ────────────────────────────────────────
+const userIcon = L.divIcon({
+  className: "",
+  html: `<span class="material-symbols-rounded user-marker" style="font-size:34px">location_on</span>`,
+  iconSize: [34, 34],
+  iconAnchor: [17, 34]
+});
+
 let userMarker = null;
 let _onLocationChange = null;
 
@@ -73,7 +78,7 @@ export function onLocationChange(cb) { _onLocationChange = cb; }
 
 export function setUserLocation(lat, lon) {
   if (!userMarker) {
-    userMarker = createUserMarker([lat, lon]);
+    userMarker = L.marker([lat, lon], { icon: userIcon, pane: USER_PANE });
     userMarker.addTo(map);
   } else {
     userMarker.setLatLng([lat, lon]);

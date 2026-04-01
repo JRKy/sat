@@ -1,9 +1,10 @@
 // ======================================================
 // markers.js
-// Satellite markers, labels (zoom-aware), user marker.
+// Satellite markers and zoom-aware labels.
+// (User marker lives in map.js to avoid circular imports.)
 // ======================================================
 
-import { map, SAT_PANE, LABEL_PANE, USER_PANE } from "./map.js";
+import { map, SAT_PANE, LABEL_PANE } from "./map.js";
 import { LABEL_ZOOM_THRESHOLD } from "./state.js";
 
 // ── Icon helpers ───────────────────────────────────────
@@ -17,12 +18,6 @@ function materialIcon(symbol, className = "", size = 28) {
 }
 
 const satelliteIcon = materialIcon("satellite_alt", "sat-marker", 28);
-const userIcon      = materialIcon("location_on",   "user-marker", 36);
-
-// ── User marker ────────────────────────────────────────
-export function createUserMarker(latlng) {
-  return L.marker(latlng, { icon: userIcon, pane: USER_PANE });
-}
 
 // ── Label visibility ───────────────────────────────────
 // All labels are collected here so we can show/hide on zoom.
