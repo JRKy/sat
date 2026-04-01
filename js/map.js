@@ -1,84 +1,50 @@
-// =========================================
-// Map Initialization + Base Layers
-// =========================================
+// ======================================================
+// map.js
+// Map initialization, base layers, panes, user marker.
+// ======================================================
 
 import { createUserMarker } from "./markers.js";
 
-// --- Base layers (Option A: no API keys required) ---
-
+// ── Base tile layers ───────────────────────────────────
 const street = L.tileLayer(
   "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-  {
-    maxZoom: 19,
-    attribution: "&copy; OpenStreetMap contributors"
-  }
+  { maxZoom: 19, attribution: "&copy; OpenStreetMap contributors" }
 );
 
 const dark = L.tileLayer(
   "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-  {
-    maxZoom: 19,
-    attribution: "&copy; CARTO"
-  }
+  { maxZoom: 19, attribution: "&copy; CARTO" }
 );
 
 const terrain = L.tileLayer(
   "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
-  {
-    maxZoom: 17,
-    attribution: "&copy; OpenTopoMap contributors"
-  }
+  { maxZoom: 17, attribution: "&copy; OpenTopoMap contributors" }
 );
 
 const satellite = L.tileLayer(
-  "https://server.arcgisonline.com/ArcGIS/rest/services/" +
-    "World_Imagery/MapServer/tile/{z}/{y}/{x}",
-  {
-    maxZoom: 19,
-    attribution: "Tiles &copy; Esri"
-  }
+  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+  { maxZoom: 19, attribution: "Tiles &copy; Esri" }
 );
 
-// =========================================
-// Map Setup
-// =========================================
-
+// ── Map instance ───────────────────────────────────────
 export const map = L.map("map", {
   center: [20, 0],
   zoom: 2,
   zoomControl: true,
   worldCopyJump: true,
   preferCanvas: true,
-  layers: [street] // default
+  layers: [street]
 });
 
-// =========================================
-// Layer Control
-// =========================================
-
-const baseLayers = {
-  "Street": street,
-  "Dark": dark,
-  "Terrain": terrain,
-  "Satellite": satellite
-};
-
-L.control.layers(baseLayers, null, { position: "topleft" }).addTo(map);
-
-// =========================================
-// Scale Control
-// =========================================
-
-L.control.scale({
-  metric: true,
-  imperial: true,
-  position: "bottomleft"
+// ── Layer control ──────────────────────────────────────
+L.control.layers({ "Street": street, "Dark": dark, "Terrain": terrain, "Satellite": satellite }, null, {
+  position: "topleft"
 }).addTo(map);
 
-// =========================================
-// Panes (rendering order)
-// =========================================
+// ── Scale control ──────────────────────────────────────
+L.control.scale({ metric: true, imperial: true, position: "bottomleft" }).addTo(map);
 
+// ── Rendering panes (z-order) ──────────────────────────
 export const FOOTPRINT_PANE = "footprint-pane";
 map.createPane(FOOTPRINT_PANE);
 map.getPane(FOOTPRINT_PANE).style.zIndex = 300;
@@ -99,16 +65,12 @@ map.createPane(USER_PANE);
 map.getPane(USER_PANE).style.zIndex = 500;
 map.getPane(USER_PANE).style.pointerEvents = "auto";
 
-// =========================================
-// User Marker (created lazily)
-// =========================================
-
+// ── User marker ────────────────────────────────────────
 let userMarker = null;
+let _onLocationChange = null;
 
-/**
- * Sets the user's location on the map.
- * Creates the marker only when needed.
- */
+export function onLocationChange(cb) { _onLocationChange = cb; }
+
 export function setUserLocation(lat, lon) {
   if (!userMarker) {
     userMarker = createUserMarker([lat, lon]);
@@ -116,24 +78,17 @@ export function setUserLocation(lat, lon) {
   } else {
     userMarker.setLatLng([lat, lon]);
   }
+  if (_onLocationChange) _onLocationChange(lat, lon);
 }
 
-// =========================================
-// Map Click Handler (sets user location)
-// =========================================
+export function getUserMarker() { return userMarker; }
 
+// ── Map click → set user location ─────────────────────
+// (events.js also listens to map clicks for deselection;
+//  Leaflet fires listeners in registration order, so
+//  events.js registers its listener after map.js runs.)
 map.on("click", (e) => {
-  const { lat, lng } = e.latlng;
-  setUserLocation(lat, lng);
+  setUserLocation(e.latlng.lat, e.latlng.lng);
 });
 
-// =========================================
-// Export Base Layers (optional use elsewhere)
-// =========================================
-
-export const layers = {
-  street,
-  dark,
-  terrain,
-  satellite
-};
+export const layers = { street, dark, terrain, satellite };

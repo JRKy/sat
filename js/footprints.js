@@ -1,121 +1,78 @@
+// ======================================================
+// footprints.js
+// Footprint polygon rendering for selected / all visible sats.
+// ======================================================
+
 import { map, FOOTPRINT_PANE } from "./map.js";
-import {
-  satellites,
-  selectedSatNames,
-  autoFitFootprints
-} from "./state.js";
-import {
-  footprintBoundaryPoints
-} from "./geometry.js";
+import { footprintBoundaryPoints } from "./geometry.js";
 
 const FOOTPRINT_COLORS = [
-  "#1a73e8",
-  "#34a853",
-  "#fbbc05",
-  "#ea4335",
-  "#8e24aa",
-  "#00acc1"
+  "#1a73e8", "#34a853", "#fbbc05", "#ea4335", "#8e24aa", "#00acc1",
+  "#f57c00", "#0097a7", "#c62828", "#558b2f"
 ];
 
-let footprintLayers = new Map();
+let footprintLayers = new Map(); // satName → L.layerGroup
 
+// ── Public API ─────────────────────────────────────────
 export function clearFootprints() {
-  for (const [, layer] of footprintLayers) map.removeLayer(layer);
+  for (const [, group] of footprintLayers) map.removeLayer(group);
   footprintLayers.clear();
 }
 
-export function fitToFootprints() {
-  try {
-    if (!footprintLayers.size) return;
-    const group = L.featureGroup([...footprintLayers.values()]);
-    const b = group.getBounds();
-    if (b && b.isValid()) {
-      map.fitBounds(b, { padding: [20, 20], maxZoom: 4 });
-    }
-  } catch {}
-}
-
 /**
- * Unwrap longitudes so the ring is monotonic and continuous.
+ * Redraws footprints for a given satellite list.
+ * Call with an empty array or enabled=false to clear.
+ *
+ * @param {Array}   satList   Satellite objects to draw footprints for
+ * @param {boolean} enabled   Whether footprints are toggled on
  */
-function unwrapRing(ring) {
-  if (!ring.length) return ring;
-
-  const out = [ring[0]];
-  let prevLon = ring[0][1];
-
-  for (let i = 1; i < ring.length; i++) {
-    const [lat, lonRaw] = ring[i];
-    let lon = lonRaw;
-
-    while (lon - prevLon > 180) lon -= 360;
-    while (lon - prevLon < -180) lon += 360;
-
-    out.push([lat, lon]);
-    prevLon = lon;
-  }
-
-  return out;
-}
-
-export function updateFootprints(footprintEnabled) {
+export function updateFootprints(satList, enabled) {
   clearFootprints();
-  if (!footprintEnabled) return;
-  if (!selectedSatNames.size) return;
+  if (!enabled || !satList.length) return;
 
-  const selected = satellites
-    .filter(s => selectedSatNames.has(s.name))
-    .sort((a, b) => (a.lon - b.lon) || a.name.localeCompare(b.name));
-
-  selected.forEach((sat, idx) => {
+  satList.forEach((sat, idx) => {
     const color = FOOTPRINT_COLORS[idx % FOOTPRINT_COLORS.length];
-
-    // 1. Generate raw footprint ring
     const boundary = footprintBoundaryPoints(sat, 720);
     if (!boundary || boundary.length < 3) return;
 
-    // 2. Unwrap longitudes
-    const unwrapped = unwrapRing(boundary);
+    const unwrapped = _unwrapRing(boundary);
+    const offsets   = [0, 360, -360];
+    const layers    = [];
 
-    // 3. Repeat footprints across world tiles
-    const offsets = [0, 360, -360];
-
-    const layers = [];
-
-    offsets.forEach(offset => {
+    for (const offset of offsets) {
       const shifted = unwrapped.map(([lat, lon]) => [lat, lon + offset]);
 
-      // Filled polygon
       const fill = L.polygon(shifted, {
         pane: FOOTPRINT_PANE,
-        color,
-        weight: 1,
-        opacity: 0.0,
-        fillColor: color,
-        fillOpacity: 0.06,
-        noWrap: true,
-        interactive: false
+        color, weight: 1, opacity: 0,
+        fillColor: color, fillOpacity: 0.07,
+        noWrap: true, interactive: false
       }).addTo(map);
 
-      // Outline
       const outline = L.polyline(shifted, {
         pane: FOOTPRINT_PANE,
-        color,
-        weight: 2,
-        opacity: 0.85,
-        smoothFactor: 1.0,
-        noWrap: true,
-        interactive: false
+        color, weight: 2, opacity: 0.85,
+        smoothFactor: 1, noWrap: true, interactive: false
       }).addTo(map);
 
       layers.push(fill, outline);
-    });
+    }
 
-    const group = L.layerGroup(layers).addTo(map);
-    footprintLayers.set(sat.name, group);
+    footprintLayers.set(sat.name, L.layerGroup(layers).addTo(map));
   });
+}
 
-  if (footprintEnabled && autoFitFootprints) {
-    fitToFootprints();
+// ── Internal ───────────────────────────────────────────
+function _unwrapRing(ring) {
+  if (!ring.length) return ring;
+  const out = [ring[0]];
+  let prevLon = ring[0][1];
+  for (let i = 1; i < ring.length; i++) {
+    let lon = ring[i][1];
+    while (lon - prevLon >  180) lon -= 360;
+    while (lon - prevLon < -180) lon += 360;
+    out.push([ring[i][0], lon]);
+    prevLon = lon;
   }
+  return out;
 }

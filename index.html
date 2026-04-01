@@ -2,92 +2,95 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Satellite Antenna Tracker</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
 
   <!-- Leaflet CSS -->
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-  />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
-  <!-- Your styles -->
-  <link rel="stylesheet" href="styles/main.css">
-
-  <!-- Material Symbols Rounded -->
+  <!-- Material Symbols -->
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700&family=Roboto+Mono:wght@400;600&display=swap" rel="stylesheet" />
 
   <style>
     .material-symbols-rounded {
-      font-variation-settings:
-        'FILL' 0,
-        'wght' 400,
-        'GRAD' 0,
-        'opsz' 24;
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
     }
   </style>
+
+  <link rel="stylesheet" href="styles/main.css" />
 </head>
 
 <body>
 
-  <!-- Map container -->
+  <!-- Map -->
   <div id="map"></div>
 
   <!-- Satellite Panel -->
   <div id="sat-panel" class="panel">
     <div class="panel-header">
-      <button id="panel-close" class="icon-btn">
-        <span class="material-symbols-rounded">close</span>
-      </button>
-      <button id="panel-pin" class="icon-btn">
+      <button id="panel-pin" class="icon-btn" title="Pin panel">
         <span class="material-symbols-rounded">push_pin</span>
+      </button>
+      <button id="panel-close" class="icon-btn" title="Close">
+        <span class="material-symbols-rounded">close</span>
       </button>
     </div>
 
     <div class="panel-content">
+
+      <!-- Observer location card -->
       <div id="observer-info"></div>
+
+      <!-- Selected satellite detail card -->
       <div id="selected-info"></div>
 
-      <label>Elevation Cutoff:
-        <input type="range" id="cutoff" min="0" max="90" value="0">
-        <span id="cutoff-value">0</span>°
-      </label>
+      <!-- Controls -->
+      <div class="panel-controls">
+        <div class="control-row">
+          <span class="control-label">Min Elevation</span>
+          <input type="range" id="cutoff" min="0" max="90" value="0" />
+          <span class="control-value"><span id="cutoff-value">0</span>°</span>
+        </div>
 
-      <label class="panel-footprint">
-        <input type="checkbox" id="footprint-toggle">
-        Show Footprints
-      </label>
+        <div class="control-row">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" id="footprint-toggle" />
+            <span>Show Footprints</span>
+          </label>
+        </div>
+      </div>
 
+      <!-- Satellite list table -->
       <div id="sat-table"></div>
+
     </div>
   </div>
 
+  <!-- Backdrop -->
   <div id="sat-backdrop"></div>
 
   <!-- Search -->
   <div id="search-container">
-    <input id="search" type="text" placeholder="Search location…">
+    <input id="search" type="text" placeholder="Search location…" autocomplete="off" />
     <div id="autocomplete" class="hidden"></div>
   </div>
 
-  <!-- Buttons -->
-  <button id="geo" class="floating-btn">
+  <!-- FABs -->
+  <button id="geo" class="floating-btn" title="Use my location">
     <span class="material-symbols-rounded">my_location</span>
   </button>
 
-  <button id="sat-toggle" class="floating-btn">
+  <button id="sat-toggle" class="floating-btn" title="Satellites">
     <span class="material-symbols-rounded">satellite_alt</span>
   </button>
 
-  <!-- Leaflet JS -->
+  <!-- Libraries -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-  <!-- Leaflet.Geodesic plugin -->
   <script src="https://unpkg.com/leaflet.geodesic/dist/leaflet.geodesic.min.js"></script>
 
-  <!-- Satellite.js -->
-  <script src="https://unpkg.com/satellite.js/dist/satellite.min.js"></script>
-
-  <!-- Your modular app -->
+  <!-- App -->
   <script type="module" src="js/app.js"></script>
 
 </body>

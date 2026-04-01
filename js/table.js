@@ -1,79 +1,50 @@
 // ======================================================
 // table.js
-// Satellite table rendering + sorting + selection
+// Satellite list table: rendering, sorting, row selection.
 // ======================================================
 
 import { highlightSatellite, clearSatelliteHighlight } from "./events.js";
+import { hasObserver } from "./state.js";
 
-// ======================================================
-// INTERNAL STATE
-// ======================================================
-
+// ── Internal state ─────────────────────────────────────
 let tableContainer = null;
-let satellites = [];
-let sortColumn = "name";
-let sortDirection = "asc"; // "asc" or "desc"
+let satellites     = [];
+let sortColumn     = "name";
+let sortDirection  = "asc";
 
-// ======================================================
-// SORTING HELPERS
-// ======================================================
-
+// ── Sorting ────────────────────────────────────────────
 function compare(a, b) {
-  const col = sortColumn;
-
-  let v1 = a[col];
-  let v2 = b[col];
-
-  // Numeric columns
-  if (col === "centerLon" || col === "az" || col === "el") {
-    v1 = Number(v1);
-    v2 = Number(v2);
-  }
-
+  let v1 = a[sortColumn];
+  let v2 = b[sortColumn];
+  if (["centerLon", "az", "el"].includes(sortColumn)) { v1 = Number(v1); v2 = Number(v2); }
   if (v1 < v2) return sortDirection === "asc" ? -1 : 1;
-  if (v1 > v2) return sortDirection === "asc" ? 1 : -1;
+  if (v1 > v2) return sortDirection === "asc" ?  1 : -1;
   return 0;
 }
 
-function sortSatellites() {
-  satellites.sort(compare);
-}
-
-// ======================================================
-// TABLE HEADER TEMPLATE
-// ======================================================
-
+// ── Rendering ──────────────────────────────────────────
 function headerCell(label, key) {
-  const isSorted = sortColumn === key;
-  const sortClass = isSorted ? `sort-${sortDirection}` : "";
-
+  const isSorted   = sortColumn === key;
+  const sortClass  = isSorted ? `sort-${sortDirection}` : "";
   return `<th data-col="${key}" class="${sortClass}">${label}</th>`;
 }
 
-// ======================================================
-// TABLE RENDERING
-// ======================================================
-
 function renderTable() {
-  sortSatellites();
+  satellites.sort(compare);
+  const showAngles = hasObserver();
 
-  const rows = satellites
-    .map(
-      (sat) => `
-      <tr data-id="${sat.id}">
-        <td>${sat.name}</td>
-        <td>${sat.centerLon.toFixed(1)}°</td>
-        <td>${sat.az.toFixed(1)}°</td>
-        <td>${sat.el.toFixed(1)}°</td>
-        <td>
-          <span class="status-pill status-${sat.status}">
-            ${sat.status.toUpperCase()}
-          </span>
-        </td>
-      </tr>
-    `
-    )
-    .join("");
+  const rows = satellites.map(sat => `
+    <tr data-id="${sat.id}">
+      <td>${sat.name}</td>
+      <td>${sat.centerLon.toFixed(1)}°</td>
+      <td>${showAngles ? sat.az.toFixed(1) + "°" : "—"}</td>
+      <td>${showAngles ? sat.el.toFixed(1) + "°" : "—"}</td>
+      <td>
+        <span class="status-pill status-${sat.status}">
+          ${showAngles ? sat.status.toUpperCase() : "—"}
+        </span>
+      </td>
+    </tr>`).join("");
 
   tableContainer.innerHTML = `
     <table>
@@ -86,84 +57,53 @@ function renderTable() {
           ${headerCell("Status", "status")}
         </tr>
       </thead>
-      <tbody>
-        ${rows}
-      </tbody>
-    </table>
-  `;
+      <tbody>${rows}</tbody>
+    </table>`;
 
   attachHeaderEvents();
   attachRowEvents();
 }
 
-// ======================================================
-// HEADER CLICK EVENTS (SORTING)
-// ======================================================
-
 function attachHeaderEvents() {
-  const headers = tableContainer.querySelectorAll("th");
-
-  headers.forEach((th) => {
+  tableContainer.querySelectorAll("th").forEach(th => {
     th.addEventListener("click", () => {
       const col = th.dataset.col;
-
-      if (col === sortColumn) {
-        // Toggle direction
-        sortDirection = sortDirection === "asc" ? "desc" : "asc";
-      } else {
-        sortColumn = col;
-        sortDirection = "asc";
-      }
-
+      if (col === sortColumn) sortDirection = sortDirection === "asc" ? "desc" : "asc";
+      else { sortColumn = col; sortDirection = "asc"; }
       renderTable();
     });
   });
 }
 
-// ======================================================
-// ROW CLICK EVENTS (SELECTION + MAP HIGHLIGHT)
-// ======================================================
-
 function attachRowEvents() {
-  const rows = tableContainer.querySelectorAll("tbody tr");
-
-  rows.forEach((row) => {
+  tableContainer.querySelectorAll("tbody tr").forEach(row => {
     row.addEventListener("click", () => {
-      const id = row.dataset.id;
-
-      // Clear previous selection
-      rows.forEach((r) => r.classList.remove("selected"));
+      tableContainer.querySelectorAll("tbody tr").forEach(r => r.classList.remove("selected"));
       row.classList.add("selected");
-
-      highlightSatellite(id);
+      highlightSatellite(row.dataset.id);
     });
   });
 }
 
-// ======================================================
-// PUBLIC API
-// ======================================================
-
-/**
- * Initializes the table system.
- */
+// ── Public API ─────────────────────────────────────────
 export function initTable(containerId) {
   tableContainer = document.getElementById(containerId);
 }
 
-/**
- * Updates the table with a new satellite list.
- */
 export function updateTable(satList) {
   satellites = satList;
   renderTable();
 }
 
-/**
- * Clears selection (used when clicking map background).
- */
 export function clearTableSelection() {
-  const rows = tableContainer.querySelectorAll("tbody tr");
-  rows.forEach((r) => r.classList.remove("selected"));
+  if (!tableContainer) return;
+  tableContainer.querySelectorAll("tbody tr").forEach(r => r.classList.remove("selected"));
   clearSatelliteHighlight();
+}
+
+export function selectTableRow(id) {
+  if (!tableContainer) return;
+  tableContainer.querySelectorAll("tbody tr").forEach(r => {
+    r.classList.toggle("selected", r.dataset.id === id);
+  });
 }

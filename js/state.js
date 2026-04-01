@@ -1,48 +1,54 @@
-// Global constants & shared state
+// ======================================================
+// state.js
+// Single source of truth for the entire application.
+// All modules read from and write to this store.
+// ======================================================
 
-export const EARTH_RADIUS_KM = 6371;
-export const DEFAULT_SAT_LAT = 0;
+// ── Constants ──────────────────────────────────────────
+export const EARTH_RADIUS_KM    = 6371;
 export const DEFAULT_SAT_ALT_KM = 35786;
-export const MIN_VISIBLE_EL = 0;
-export const MIN_USABLE_EL = 10;
 export const GREAT_CIRCLE_STEPS = 64;
-export const LABEL_ZOOM_THRESHOLD = 6;
+export const LABEL_ZOOM_THRESHOLD = 4;
 
-export const FOOTPRINT_STORAGE_KEY = "satFootprintEnabled";
-export const PIN_STORAGE_KEY = "satPanelPinned";
+// ── Satellite list ─────────────────────────────────────
+let _satellites = [];
+export function getSatellites()      { return _satellites; }
+export function setSatellites(list)  { _satellites = list; }
 
-export let satellites = [];
-export let satMarkers = new Map();
-export let lineLayers = [];
-export let selectedSatNames = new Set();
-export let autoFitFootprints = false;
+// ── Observer location ──────────────────────────────────
+// null until the user sets a location
+let _observer = null;   // { lat, lon, heightKm }
+export function getObserver()    { return _observer; }
+export function setObserver(o)   { _observer = o; }
+export function hasObserver()    { return _observer !== null; }
 
-export let lastObserver = { lat: 39.0, lon: -104.0, heightKm: 2.3 };
+// ── UI state ───────────────────────────────────────────
+let _selectedId      = null;
+let _showFootprints  = false;
+let _elevationCutoff = 0;
 
-export function setSatellites(list) { satellites = list; }
-export function setLineLayers(layers) { lineLayers = layers; }
-export function setLastObserver(o) { lastObserver = o; }
+export function getSelectedId()         { return _selectedId; }
+export function setSelectedId(id)       { _selectedId = id; }
 
-export function safeGetFootprintFromStorage() {
-  try {
-    const v = localStorage.getItem(FOOTPRINT_STORAGE_KEY);
-    return v === "true";
-  } catch {
-    return false;
-  }
+export function getShowFootprints()     { return _showFootprints; }
+export function setShowFootprints(v)    { _showFootprints = v; }
+
+export function getElevationCutoff()    { return _elevationCutoff; }
+export function setElevationCutoff(v)   { _elevationCutoff = v; }
+
+// ── Persistence helpers ────────────────────────────────
+const FOOTPRINT_KEY = "sat_footprint";
+const PIN_KEY       = "sat_pinned";
+
+export function loadPersistedFootprint() {
+  try { return localStorage.getItem(FOOTPRINT_KEY) === "true"; } catch { return false; }
 }
-
-export function safeSetFootprintToStorage(val) {
-  try { localStorage.setItem(FOOTPRINT_STORAGE_KEY, val ? "true" : "false"); }
-  catch {}
+export function saveFootprint(v) {
+  try { localStorage.setItem(FOOTPRINT_KEY, v ? "true" : "false"); } catch {}
 }
-
-export function safeGetPinnedFromStorage() {
-  try { return localStorage.getItem(PIN_STORAGE_KEY) === "true"; }
-  catch { return false; }
+export function loadPersistedPinned() {
+  try { return localStorage.getItem(PIN_KEY) === "true"; } catch { return false; }
 }
-
-export function safeSetPinnedToStorage(val) {
-  try { localStorage.setItem(PIN_STORAGE_KEY, val ? "true" : "false"); }
-  catch {}
+export function savePinned(v) {
+  try { localStorage.setItem(PIN_KEY, v ? "true" : "false"); } catch {}
 }

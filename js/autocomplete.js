@@ -1,56 +1,35 @@
 // ======================================================
 // autocomplete.js
-// Simple location search using Nominatim
+// Location search via Nominatim with keyboard navigation.
 // ======================================================
 
 import { map } from "./map.js";
 
-// DOM elements
 const input = document.getElementById("search");
-const list = document.getElementById("autocomplete");
+const list  = document.getElementById("autocomplete");
 
-let results = [];
-let activeIndex = -1;
+let results        = [];
+let activeIndex    = -1;
 let onSelectCallback = null;
 
-// ======================================================
-// RENDER RESULTS
-// ======================================================
-
+// ── Render ─────────────────────────────────────────────
 function renderList() {
-  if (results.length === 0) {
-    list.classList.add("hidden");
-    return;
-  }
+  if (!results.length) { list.classList.add("hidden"); return; }
 
-  list.innerHTML = results
-    .map(
-      (r, i) => `
-      <div class="autocomplete-item ${i === activeIndex ? "active" : ""}" data-i="${i}">
-        <div>
-          <div class="autocomplete-primary">${r.display_name}</div>
-          <div class="autocomplete-secondary">${r.type}</div>
-        </div>
-      </div>
-    `
-    )
-    .join("");
+  list.innerHTML = results.map((r, i) => `
+    <div class="autocomplete-item ${i === activeIndex ? "active" : ""}" data-i="${i}">
+      <div class="autocomplete-primary">${r.display_name}</div>
+      <div class="autocomplete-secondary">${r.type}</div>
+    </div>`).join("");
 
   list.classList.remove("hidden");
 
-  // Click events
-  list.querySelectorAll(".autocomplete-item").forEach((item) => {
-    item.addEventListener("click", () => {
-      const i = Number(item.dataset.i);
-      choose(i);
-    });
+  list.querySelectorAll(".autocomplete-item").forEach(item => {
+    item.addEventListener("click", () => choose(Number(item.dataset.i)));
   });
 }
 
-// ======================================================
-// CHOOSE RESULT
-// ======================================================
-
+// ── Choose ─────────────────────────────────────────────
 function choose(i) {
   const r = results[i];
   if (!r) return;
@@ -62,60 +41,47 @@ function choose(i) {
   const lon = Number(r.lon);
 
   if (onSelectCallback) onSelectCallback(lat, lon);
-
   map.setView([lat, lon], 8);
 }
 
-// ======================================================
-// SEARCH API
-// ======================================================
-
+// ── Search ─────────────────────────────────────────────
 async function search(query) {
-  const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-    query
-  )}`;
-
-  const res = await fetch(url);
-  const data = await res.json();
-
-  results = data.slice(0, 8);
-  activeIndex = -1;
-  renderList();
-}
-
-// ======================================================
-// KEYBOARD HANDLING
-// ======================================================
-
-function handleKey(e) {
-  if (list.classList.contains("hidden")) return;
-
-  if (e.key === "ArrowDown") {
-    activeIndex = (activeIndex + 1) % results.length;
+  try {
+    const res  = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
+    const data = await res.json();
+    results     = data.slice(0, 8);
+    activeIndex = -1;
     renderList();
-  } else if (e.key === "ArrowUp") {
-    activeIndex = (activeIndex - 1 + results.length) % results.length;
-    renderList();
-  } else if (e.key === "Enter") {
-    if (activeIndex >= 0) choose(activeIndex);
+  } catch {
+    list.classList.add("hidden");
   }
 }
 
-// ======================================================
-// PUBLIC API
-// ======================================================
+// ── Keyboard ───────────────────────────────────────────
+function handleKey(e) {
+  if (list.classList.contains("hidden")) return;
+  if (e.key === "ArrowDown")  { activeIndex = (activeIndex + 1) % results.length; renderList(); }
+  else if (e.key === "ArrowUp") { activeIndex = (activeIndex - 1 + results.length) % results.length; renderList(); }
+  else if (e.key === "Enter")   { if (activeIndex >= 0) choose(activeIndex); }
+  else if (e.key === "Escape")  { list.classList.add("hidden"); }
+}
 
+// ── Public API ─────────────────────────────────────────
 export function initAutocomplete(callback) {
   onSelectCallback = callback;
 
+  let debounce;
   input.addEventListener("input", () => {
+    clearTimeout(debounce);
     const q = input.value.trim();
-    if (q.length < 3) {
-      list.classList.add("hidden");
-      return;
-    }
-    search(q);
+    if (q.length < 3) { list.classList.add("hidden"); return; }
+    debounce = setTimeout(() => search(q), 250);
   });
 
   input.addEventListener("keydown", handleKey);
+
+  // Close on outside click
+  document.addEventListener("click", e => {
+    if (!e.target.closest("#search-container")) list.classList.add("hidden");
+  });
 }

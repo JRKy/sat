@@ -1,17 +1,12 @@
 // ======================================================
 // markers.js
-// Satellite markers, labels, and user marker
+// Satellite markers, labels (zoom-aware), user marker.
 // ======================================================
 
 import { map, SAT_PANE, LABEL_PANE, USER_PANE } from "./map.js";
+import { LABEL_ZOOM_THRESHOLD } from "./state.js";
 
-// ======================================================
-// ICON HELPERS
-// ======================================================
-
-/**
- * Creates a Material Symbol divIcon.
- */
+// ── Icon helpers ───────────────────────────────────────
 function materialIcon(symbol, className = "", size = 28) {
   return L.divIcon({
     className,
@@ -21,91 +16,39 @@ function materialIcon(symbol, className = "", size = 28) {
   });
 }
 
-// Satellite icon
 const satelliteIcon = materialIcon("satellite_alt", "sat-marker", 28);
+const userIcon      = materialIcon("location_on",   "user-marker", 36);
 
-// User map pin icon
-const userIcon = materialIcon("location_on", "user-marker", 36);
-
-// ======================================================
-// USER MARKER
-// ======================================================
-
-/**
- * Creates the user marker (but does NOT add it to the map).
- */
+// ── User marker ────────────────────────────────────────
 export function createUserMarker(latlng) {
-  return L.marker(latlng, {
-    icon: userIcon,
-    pane: USER_PANE
-  });
+  return L.marker(latlng, { icon: userIcon, pane: USER_PANE });
 }
 
-// ======================================================
-// SATELLITE MARKERS + LABELS
-// ======================================================
+// ── Label visibility ───────────────────────────────────
+// All labels are collected here so we can show/hide on zoom.
+const allLabels = new Set();
 
-/**
- * Creates a satellite marker at a given lat/lon.
- * Satellite center is always lat = 0, lon = centerLon.
- */
-export function createSatelliteMarker(sat) {
-  const latlng = [0, sat.centerLon];
-
-  const marker = L.marker(latlng, {
-    icon: satelliteIcon,
-    pane: SAT_PANE,
-    title: sat.name
-  });
-
-  return marker;
+function updateLabelVisibility() {
+  const visible = map.getZoom() >= LABEL_ZOOM_THRESHOLD;
+  for (const label of allLabels) {
+    const el = label.getElement();
+    if (el) el.style.display = visible ? "" : "none";
+  }
 }
 
-/**
- * Creates a vertical chip-style label for a satellite.
- */
-export function createSatelliteLabel(sat) {
-  const latlng = [0, sat.centerLon];
+map.on("zoomend", updateLabelVisibility);
 
-  const labelHtml = `
-    <div class="sat-label">
-      <span class="name">${sat.name}</span>
-      <span class="center">${sat.centerLon.toFixed(1)}°</span>
-    </div>
-  `;
-
-  const label = L.marker(latlng, {
-    icon: L.divIcon({
-      className: "",
-      html: labelHtml,
-      iconSize: null
-    }),
-    interactive: false,
-    pane: LABEL_PANE
-  });
-
-  return label;
-}
-
-// ======================================================
-// WORLD-WRAPPING (duplicate markers at ±360°)
-// ======================================================
+// ── Wrapped satellite markers ──────────────────────────
+const WORLD_OFFSETS = [-360, 0, 360];
 
 /**
- * Returns an array of lon offsets to duplicate markers across world copies.
- */
-function worldWrapOffsets() {
-  return [-360, 0, 360];
-}
-
-/**
- * Creates wrapped markers for a satellite.
+ * Creates wrapped markers for all world copies.
  * Returns an array of { marker, label } objects.
  */
 export function createWrappedSatelliteMarkers(sat) {
   const wrapped = [];
 
-  for (const offset of worldWrapOffsets()) {
+  for (const offset of WORLD_OFFSETS) {
     const lon = sat.centerLon + offset;
 
     const marker = L.marker([0, lon], {
@@ -118,15 +61,10 @@ export function createWrappedSatelliteMarkers(sat) {
       <div class="sat-label">
         <span class="name">${sat.name}</span>
         <span class="center">${sat.centerLon.toFixed(1)}°</span>
-      </div>
-    `;
+      </div>`;
 
     const label = L.marker([0, lon], {
-      icon: L.divIcon({
-        className: "",
-        html: labelHtml,
-        iconSize: null
-      }),
+      icon: L.divIcon({ className: "", html: labelHtml, iconSize: null }),
       interactive: false,
       pane: LABEL_PANE
     });
@@ -137,25 +75,22 @@ export function createWrappedSatelliteMarkers(sat) {
   return wrapped;
 }
 
-// ======================================================
-// BULK ADD / REMOVE HELPERS
-// ======================================================
-
-/**
- * Adds all wrapped satellite markers + labels to the map.
- */
+// ── Bulk add / remove ──────────────────────────────────
 export function addSatelliteToMap(wrappedSet) {
+  const showLabels = map.getZoom() >= LABEL_ZOOM_THRESHOLD;
   for (const w of wrappedSet) {
     w.marker.addTo(map);
     w.label.addTo(map);
+    allLabels.add(w.label);
+    // Apply initial visibility immediately after adding
+    const el = w.label.getElement();
+    if (el && !showLabels) el.style.display = "none";
   }
 }
 
-/**
- * Removes all wrapped satellite markers + labels from the map.
- */
 export function removeSatelliteFromMap(wrappedSet) {
   for (const w of wrappedSet) {
+    allLabels.delete(w.label);
     map.removeLayer(w.marker);
     map.removeLayer(w.label);
   }
