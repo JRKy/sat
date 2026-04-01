@@ -390,11 +390,12 @@ html, body {
 ========================================= */
 .compass { display: block; flex-shrink: 0; }
 
-.compass-ring   { fill: var(--bg-hover); stroke: var(--border); stroke-width: 1.5; }
-.compass-dir    { font-size: 9px; font-family: var(--font); fill: var(--text-muted); font-weight: 600; }
-.compass-needle { stroke: var(--accent); stroke-width: 2.5; stroke-linecap: round; }
-.compass-tip    { fill: var(--accent); }
-.compass-center { fill: var(--text-muted); }
+.compass-ring      { fill: var(--bg-hover); stroke: var(--border); stroke-width: 1.5; }
+.compass-dir       { font-size: 8px; font-family: var(--font); fill: var(--text-muted); font-weight: 700; }
+.compass-tick      { stroke: var(--border-dark); stroke-width: 1.5; stroke-linecap: round; }
+.compass-needle    { stroke: var(--accent); stroke-width: 2; stroke-linecap: round; }
+.compass-tip-poly  { fill: var(--accent); }
+.compass-center    { fill: var(--text-muted); }
 
 /* =========================================
    Status Pills
@@ -487,14 +488,14 @@ html, body {
 #sat-table td:last-child  { text-align: right; }
 #sat-table tbody tr:last-child td { border-bottom: none; }
 
-/* =========================================
-   Satellite & User Markers
+/* Satellite & User Markers
 ========================================= */
 .sat-marker span.material-symbols-rounded {
   font-size: 26px;
   color: var(--accent);
   filter: drop-shadow(0 1px 3px rgba(0,0,0,0.25));
   transition: color 0.15s, transform 0.15s;
+  display: block;
 }
 
 .sat-marker.selected span.material-symbols-rounded {
@@ -503,10 +504,12 @@ html, body {
   filter: drop-shadow(0 2px 6px rgba(26,115,232,0.5));
 }
 
-.user-marker span.material-symbols-rounded {
+/* user-marker class is on the <span> directly (lives in map.js divIcon html) */
+span.user-marker {
   font-size: 34px;
   color: #d93025;
   filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+  display: block;
 }
 
 /* Satellite labels */

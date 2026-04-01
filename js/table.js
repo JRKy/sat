@@ -3,7 +3,7 @@
 // Satellite list table: rendering, sorting, row selection.
 // ======================================================
 
-import { highlightSatellite, clearSatelliteHighlight } from "./events.js";
+import { highlightSatellite } from "./events.js";
 import { hasObserver } from "./state.js";
 
 // ── Internal state ─────────────────────────────────────
@@ -95,12 +95,18 @@ export function updateTable(satList) {
   renderTable();
 }
 
+/**
+ * Clears row highlight in the DOM only.
+ * Does NOT call back into events.js to avoid circular calls.
+ */
 export function clearTableSelection() {
   if (!tableContainer) return;
   tableContainer.querySelectorAll("tbody tr").forEach(r => r.classList.remove("selected"));
-  clearSatelliteHighlight();
 }
 
+/**
+ * Highlights a specific row by satellite id.
+ */
 export function selectTableRow(id) {
   if (!tableContainer) return;
   tableContainer.querySelectorAll("tbody tr").forEach(r => {

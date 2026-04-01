@@ -5,7 +5,7 @@
 
 import { map, setUserLocation } from "./map.js";
 import { initTable } from "./table.js";
-import { initEvents } from "./events.js";
+import { initEvents, openPanel, closePanel } from "./events.js";
 import { initAutocomplete } from "./autocomplete.js";
 
 // 1. Initialize table container
@@ -35,13 +35,14 @@ initAutocomplete((lat, lon) => {
   setUserLocation(lat, lon);
 });
 
-// 4. Satellite panel toggle button
+// 4. Satellite panel toggle button — respects pinned state
 document.getElementById("sat-toggle").addEventListener("click", () => {
-  const panel    = document.getElementById("sat-panel");
-  const backdrop = document.getElementById("sat-backdrop");
-  panel.classList.toggle("open");
-  backdrop.classList.toggle("open");
-  document.body.classList.toggle("panel-open", panel.classList.contains("open"));
+  const panel = document.getElementById("sat-panel");
+  if (panel.classList.contains("open")) {
+    closePanel();
+  } else {
+    openPanel();
+  }
 });
 
 // 5. Geolocation button

@@ -58,8 +58,16 @@ export function createWrappedSatelliteMarkers(sat) {
         <span class="center">${sat.centerLon.toFixed(1)}°</span>
       </div>`;
 
+    const LABEL_W = 100; // approximate max label width
+    const LABEL_H = 34;  // two lines of text + padding
+
     const label = L.marker([0, lon], {
-      icon: L.divIcon({ className: "", html: labelHtml, iconSize: null }),
+      icon: L.divIcon({
+        className: "",
+        html: labelHtml,
+        iconSize:   [LABEL_W, LABEL_H],
+        iconAnchor: [LABEL_W / 2, -18]  // centered horizontally, 18px below the sat icon
+      }),
       interactive: false,
       pane: LABEL_PANE
     });

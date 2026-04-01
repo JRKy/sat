@@ -7,7 +7,6 @@
 // ── Constants ──────────────────────────────────────────
 export const EARTH_RADIUS_KM    = 6371;
 export const DEFAULT_SAT_ALT_KM = 35786;
-export const GREAT_CIRCLE_STEPS = 64;
 export const LABEL_ZOOM_THRESHOLD = 4;
 
 // ── Satellite list ─────────────────────────────────────

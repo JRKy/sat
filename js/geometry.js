@@ -3,7 +3,7 @@
 // Pure math — no DOM, no Leaflet, no side effects.
 // ======================================================
 
-import { EARTH_RADIUS_KM, DEFAULT_SAT_ALT_KM, GREAT_CIRCLE_STEPS } from "./state.js";
+import { EARTH_RADIUS_KM, DEFAULT_SAT_ALT_KM } from "./state.js";
 
 export const EPS = 1e-9;
 
@@ -45,7 +45,8 @@ export function horizonAngularRadiusRad(altKm) {
 }
 
 export function footprintBoundaryPoints(sat, steps = 720) {
-  const lon0  = toRad(sat.lon);
+  // Support both sat.centerLon (app objects) and sat.lon (raw JSON)
+  const lon0  = toRad(sat.centerLon ?? sat.lon ?? 0);
   const lat0  = toRad(sat.lat ?? 0);
   const altKm = sat.alt_km ?? DEFAULT_SAT_ALT_KM;
 
@@ -94,59 +95,33 @@ export function footprintBoundaryPoints(sat, steps = 720) {
  * @returns {{ az: number, el: number }}  degrees
  */
 export function computeAzEl(obsLat, obsLon, satLon, altKm = DEFAULT_SAT_ALT_KM) {
-  const φ  = toRad(obsLat);
-  const Δλ = toRad(satLon - obsLon);
-
-  const Re = EARTH_RADIUS_KM;
-  const Rs = Re + altKm;
-
-  // Sub-satellite point is (lat=0, lon=satLon)
-  // Vector from Earth center to sat (ECEF, simplified)
-  // Range vector from observer to sat, projected to local horizon
-  // Standard GEO pointing formula:
+  // Standard GEO pointing formula (ITU-R BO.1213 / Pratt & Bostian)
+  // Satellite is on the equator at (lat=0, lon=satLon), altitude altKm.
+  const φ   = toRad(obsLat);
+  const Δλ  = toRad(satLon - obsLon);
+  const Re  = EARTH_RADIUS_KM;
+  const Rs  = Re + altKm;
 
   const cosφ  = Math.cos(φ);
   const sinφ  = Math.sin(φ);
   const cosΔλ = Math.cos(Δλ);
   const sinΔλ = Math.sin(Δλ);
 
-  // Range vector components in topocentric coords
-  const Rx = Rs * cosΔλ - Re * cosφ;   // East component (rotated)
-  const Ry = Rs * sinΔλ;               // North-rotated
-  const Rz = -Re * sinφ;               // Up component seed
+  // a = cos(angle between observer radius and sub-sat radius)
+  const a     = cosφ * cosΔλ;
+  const slant = Math.sqrt(Re * Re + Rs * Rs - 2 * Re * Rs * a);
 
-  // ENU components
-  const east  =  Rs * sinΔλ;
-  const north =  Rs * sinφ * cosΔλ - Re * (1 / cosφ) * (sinφ * sinφ);
+  // Elevation: angle above local horizontal
+  const elRad = Math.asin((Rs * a - Re) / slant);
 
-  // More robust GEO formula (standard reference):
-  // Let a = cos(obsLat)*cos(Δlon)
-  const a = cosφ * cosΔλ;
-
-  // Elevation
-  const num   = a - Re / Rs;
-  const denom = Math.sqrt(1 - 2 * a * Re / Rs + (Re / Rs) ** 2);
-  const elRad = Math.atan(num / denom) - Math.asin(Re / Rs * Math.sin(Math.acos(a)));
-
-  // Simpler robust elevation:
-  // slant range²
-  const slant2 = Re * Re + Rs * Rs - 2 * Re * Rs * a;
-  const slant  = Math.sqrt(slant2);
-
-  // Elevation via dot product of range vector with up vector
-  // Up at observer: (cosφ cosλobs, cosφ sinλobs, sinφ) → simplified
-  const elRad2 = Math.asin((Rs * a - Re) / slant);
-
-  // Azimuth (N-clockwise) toward sub-satellite point
-  // projected great-circle bearing from (obsLat,obsLon) to (0, satLon)
-  const azRad = Math.atan2(sinΔλ, -Math.tan(φ) * cosΔλ);  // toward equatorial target
-  // adjust: for GEO at equator the bearing from northern hemisphere points south
-  // atan2 gives bearing from north; we want 0=N, 90=E
+  // Azimuth: bearing from North, clockwise, toward the satellite's
+  // sub-point on the equator — same as great-circle bearing to (0°, satLon)
+  const azRad = Math.atan2(sinΔλ, -Math.tan(φ) * cosΔλ);
   const azDeg = (toDeg(azRad) + 360) % 360;
 
   return {
-    az: Math.round(azDeg * 10) / 10,
-    el: Math.round(toDeg(elRad2) * 10) / 10
+    az: Math.round(azDeg  * 10) / 10,
+    el: Math.round(toDeg(elRad) * 10) / 10
   };
 }
 

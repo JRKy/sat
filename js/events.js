@@ -15,8 +15,8 @@ import {
   addSatelliteToMap,
   removeSatelliteFromMap
 } from "./markers.js";
-import { updateTable, clearTableSelection } from "./table.js";
-import { updateFootprints, clearFootprints } from "./footprints.js";
+import { updateTable, clearTableSelection, selectTableRow } from "./table.js";
+import { updateFootprints } from "./footprints.js";
 import { computeAzEl, elToStatus } from "./geometry.js";
 import {
   getSatellites, setSatellites,
@@ -43,13 +43,16 @@ const selectedInfo   = document.getElementById("selected-info");
 let activeWrapped = {}; // id → wrappedSet
 
 // ── Panel ──────────────────────────────────────────────
-function openPanel() {
+export function openPanel() {
   panel.classList.add("open");
-  backdrop.classList.add("open");
   document.body.classList.add("panel-open");
+  // Only show backdrop when not pinned (pinned panels sit alongside the map)
+  if (!panel.classList.contains("pinned")) {
+    backdrop.classList.add("open");
+  }
 }
 
-function closePanel() {
+export function closePanel() {
   if (panel.classList.contains("pinned")) return;
   panel.classList.remove("open");
   backdrop.classList.remove("open");
@@ -62,16 +65,21 @@ backdrop.addEventListener("click", closePanel);
 panelPin.addEventListener("click", () => {
   const pinned = panel.classList.toggle("pinned");
   savePinned(pinned);
-  // Update pin icon fill
+  if (pinned) {
+    // Pinned: panel sits alongside map, no backdrop needed
+    backdrop.classList.remove("open");
+  } else if (panel.classList.contains("open")) {
+    // Unpinned while still open: restore backdrop
+    backdrop.classList.add("open");
+  }
   panelPin.querySelector(".material-symbols-rounded").style.fontVariationSettings =
     pinned ? "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24"
            : "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24";
 });
 
-// Restore pinned state
+// Restore pinned state — no backdrop on restore
 if (loadPersistedPinned()) {
   panel.classList.add("pinned", "open");
-  backdrop.classList.add("open");
   document.body.classList.add("panel-open");
   panelPin.querySelector(".material-symbols-rounded").style.fontVariationSettings =
     "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24";
@@ -152,25 +160,52 @@ function renderSelectedInfo(sat) {
 }
 
 function buildCompassSvg(az) {
-  const r    = 30;
-  const cx   = 36, cy = 36;
-  const azR  = (az - 90) * Math.PI / 180; // rotate so 0° = North = up
-  // needle tip
-  const tx = cx + r * Math.cos(azR);
-  const ty = cy + r * Math.sin(azR);
-  // needle tail
-  const bx = cx - 16 * Math.cos(azR);
-  const by = cy - 16 * Math.sin(azR);
+  const cx = 36, cy = 36;
+  const r  = 26; // needle tip radius
+  const rb = 14; // needle tail radius
+
+  // In SVG: +Y is DOWN, +X is RIGHT.
+  // Azimuth 0° = North = "up" in the compass = SVG -Y direction.
+  // So we rotate by (az - 90) degrees then negate Y, which equals
+  // mapping az directly: angle from SVG "up" clockwise = standard azimuth.
+  // SVG angle where 0 = right (+X): azSvg = az - 90
+  const azSvg = (az - 90) * Math.PI / 180;
+
+  // Tip: in direction of satellite
+  const tx = cx + r  * Math.cos(azSvg);
+  const ty = cy + r  * Math.sin(azSvg);
+  // Tail: opposite direction
+  const bx = cx - rb * Math.cos(azSvg);
+  const by = cy - rb * Math.sin(azSvg);
+
+  // Wing points for an arrowhead at the tip
+  const wingAngle = 0.5; // radians
+  const wingLen   = 7;
+  const w1x = tx - wingLen * Math.cos(azSvg - wingAngle);
+  const w1y = ty - wingLen * Math.sin(azSvg - wingAngle);
+  const w2x = tx - wingLen * Math.cos(azSvg + wingAngle);
+  const w2y = ty - wingLen * Math.sin(azSvg + wingAngle);
 
   return `
     <svg class="compass" viewBox="0 0 72 72" width="72" height="72">
       <circle cx="${cx}" cy="${cy}" r="33" class="compass-ring"/>
-      <text x="${cx}" y="8"  class="compass-dir" text-anchor="middle">N</text>
-      <text x="${cx}" y="69" class="compass-dir" text-anchor="middle">S</text>
-      <text x="5"    y="${cy+4}" class="compass-dir" text-anchor="middle">W</text>
-      <text x="67"   y="${cy+4}" class="compass-dir" text-anchor="middle">E</text>
-      <line x1="${bx}" y1="${by}" x2="${tx}" y2="${ty}" class="compass-needle"/>
-      <circle cx="${tx}" cy="${ty}" r="3" class="compass-tip"/>
+      <!-- Cardinal directions: N=top, S=bottom, W=left, E=right -->
+      <text x="${cx}" y="9"       class="compass-dir" text-anchor="middle">N</text>
+      <text x="${cx}" y="70"      class="compass-dir" text-anchor="middle">S</text>
+      <text x="5"    y="${cy+4}"  class="compass-dir" text-anchor="middle">W</text>
+      <text x="67"   y="${cy+4}"  class="compass-dir" text-anchor="middle">E</text>
+      <!-- Tick marks -->
+      <line x1="${cx}" y1="3"  x2="${cx}" y2="10"  class="compass-tick"/>
+      <line x1="${cx}" y1="62" x2="${cx}" y2="69"  class="compass-tick"/>
+      <line x1="3"  y1="${cy}" x2="10"  y2="${cy}" class="compass-tick"/>
+      <line x1="62" y1="${cy}" x2="69"  y2="${cy}" class="compass-tick"/>
+      <!-- Needle shaft -->
+      <line x1="${bx.toFixed(2)}" y1="${by.toFixed(2)}"
+            x2="${tx.toFixed(2)}" y2="${ty.toFixed(2)}"
+            class="compass-needle"/>
+      <!-- Arrowhead -->
+      <polygon points="${tx.toFixed(2)},${ty.toFixed(2)} ${w1x.toFixed(2)},${w1y.toFixed(2)} ${w2x.toFixed(2)},${w2y.toFixed(2)}"
+               class="compass-tip-poly"/>
       <circle cx="${cx}" cy="${cy}" r="3" class="compass-center"/>
     </svg>`;
 }
@@ -237,6 +272,7 @@ function selectSatellite(id) {
   setSelectedId(id);
   openPanel();
   _applyHighlight(id);
+  selectTableRow(id);
 
   const sat = getSatellites().find(s => s.id === id);
   renderSelectedInfo(sat ?? null);
@@ -262,12 +298,11 @@ function _applyHighlight(id) {
 }
 
 // ── Map click → deselect ───────────────────────────────
-// Note: map.js also fires setUserLocation on click.
-// Both handlers run; order is: map.js first, then this.
+// map.js fires setUserLocation first (which triggers onLocationChange),
+// then this handler runs to clear any satellite selection.
 map.on("click", () => {
   clearSatelliteHighlight();
   clearTableSelection();
-  renderObserverInfo(); // refresh after location may have changed
 });
 
 // ── Location change callback ───────────────────────────
