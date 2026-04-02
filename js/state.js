@@ -38,9 +38,10 @@ export function getElevUnit()         { return _elevUnit; }
 export function setElevUnit(v)        { _elevUnit = v; }
 
 // ── Persistence ────────────────────────────────────────
-const FOOTPRINT_KEY = "sat_footprint";
-const PIN_KEY       = "sat_pinned";
-const ELEV_UNIT_KEY = "sat_elev_unit";
+const FOOTPRINT_KEY  = "sat_footprint";
+const ELEV_UNIT_KEY  = "sat_elev_unit";
+const WIN_POS_KEY    = "sat_win_pos";
+const WIN_MIN_KEY    = "sat_win_min";
 
 export function saveFootprint(v) {
   try {
@@ -49,16 +50,26 @@ export function saveFootprint(v) {
   } catch {}
 }
 
-export function loadPersistedPinned() {
-  try { return localStorage.getItem(PIN_KEY) === "true"; } catch { return false; }
-}
-export function savePinned(v) {
-  try { localStorage.setItem(PIN_KEY, v ? "true" : "false"); } catch {}
-}
-
 export function loadPersistedElevUnit() {
   try { return localStorage.getItem(ELEV_UNIT_KEY) || "horizon"; } catch { return "horizon"; }
 }
 export function saveElevUnit(v) {
   try { localStorage.setItem(ELEV_UNIT_KEY, v); } catch {}
+}
+
+export function loadPersistedWinPos() {
+  try {
+    const v = localStorage.getItem(WIN_POS_KEY);
+    return v ? JSON.parse(v) : null;
+  } catch { return null; }
+}
+export function saveWinPos(x, y) {
+  try { localStorage.setItem(WIN_POS_KEY, JSON.stringify({ x, y })); } catch {}
+}
+
+export function loadPersistedWinMin() {
+  try { return localStorage.getItem(WIN_MIN_KEY) === "true"; } catch { return false; }
+}
+export function saveWinMin(v) {
+  try { localStorage.setItem(WIN_MIN_KEY, v ? "true" : "false"); } catch {}
 }

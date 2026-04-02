@@ -1,12 +1,6 @@
 // ======================================================
 // events.js
-// Orchestrates all user interactions:
-//   - observer location changes → recompute az/el/status
-//   - satellite selection / highlight
-//   - panel open/close/pin
-//   - footprint toggle
-//   - elevation cutoff filter
-//   - map click deselection
+// Orchestrates all user interactions.
 // ======================================================
 
 import { map, onLocationChange } from "./map.js";
@@ -30,14 +24,16 @@ import {
   getElevUnit, setElevUnit,
   loadPersistedElevUnit, saveElevUnit,
   saveFootprint,
-  loadPersistedPinned, savePinned
+  loadPersistedWinPos, saveWinPos,
+  loadPersistedWinMin, saveWinMin
 } from "./state.js";
 
 // ── DOM refs ───────────────────────────────────────────
-const panel           = document.getElementById("sat-panel");
-const backdrop        = document.getElementById("sat-backdrop");
-const panelClose      = document.getElementById("panel-close");
-const panelPin        = document.getElementById("panel-pin");
+const win             = document.getElementById("sat-window");
+const winHeader       = document.getElementById("win-header");
+const winMinimizeBtn  = document.getElementById("win-minimize");
+const winTitleText    = document.getElementById("win-title-text");
+const winTitlePill    = document.getElementById("win-title-pill");
 const cutoffSlider    = document.getElementById("cutoff");
 const cutoffValue     = document.getElementById("cutoff-value");
 const footprintToggle = document.getElementById("footprint-toggle");
@@ -46,77 +42,140 @@ const exportBtn       = document.getElementById("export-btn");
 const observerInfo    = document.getElementById("observer-info");
 const selectedInfo    = document.getElementById("selected-info");
 
+// ── Active marker store ────────────────────────────────
+let activeWrapped = {};
+
 // ── Tab switching ──────────────────────────────────────
 const tabBtns  = document.querySelectorAll(".tab-btn");
 const tabPanes = document.querySelectorAll(".tab-pane");
 
 export function selectTab(name) {
-  tabBtns.forEach(b  => b.classList.toggle("active",  b.dataset.tab === name));
-  tabPanes.forEach(p => p.classList.toggle("active",  p.id === `tab-${name}`));
+  tabBtns.forEach(b  => b.classList.toggle("active", b.dataset.tab === name));
+  tabPanes.forEach(p => p.classList.toggle("active", p.id === `tab-${name}`));
 }
 
-tabBtns.forEach(btn => {
-  btn.addEventListener("click", () => selectTab(btn.dataset.tab));
+tabBtns.forEach(btn => btn.addEventListener("click", () => selectTab(btn.dataset.tab)));
+
+// ── Floating window: minimize / expand ────────────────
+let _minimized = false;
+
+export function minimizeWindow() {
+  _minimized = true;
+  win.classList.add("minimized");
+  winMinimizeBtn.querySelector(".material-symbols-rounded").textContent = "open_in_full";
+  winMinimizeBtn.title = "Expand";
+  saveWinMin(true);
+}
+
+export function expandWindow() {
+  _minimized = false;
+  win.classList.remove("minimized");
+  winMinimizeBtn.querySelector(".material-symbols-rounded").textContent = "remove";
+  winMinimizeBtn.title = "Minimize";
+  saveWinMin(false);
+}
+
+winMinimizeBtn.addEventListener("click", () => {
+  if (_minimized) expandWindow(); else minimizeWindow();
 });
 
-// ── Active marker store ────────────────────────────────
-let activeWrapped = {}; // id → wrappedSet
-
-// ── Panel ──────────────────────────────────────────────
-export function openPanel() {
-  panel.classList.add("open");
-  document.body.classList.add("panel-open");
-  // Only show backdrop when not pinned (pinned panels sit alongside the map)
-  if (!panel.classList.contains("pinned")) {
-    backdrop.classList.add("open");
-  }
-}
-
-export function closePanel() {
-  if (panel.classList.contains("pinned")) return;
-  panel.classList.remove("open");
-  backdrop.classList.remove("open");
-  document.body.classList.remove("panel-open");
-}
-
-panelClose.addEventListener("click", closePanel);
-backdrop.addEventListener("click", closePanel);
-
-// Mobile close button (chevron-down inside the tab bar)
-const panelCloseMobile = document.getElementById("panel-close-mobile");
-if (panelCloseMobile) panelCloseMobile.addEventListener("click", closePanel);
-
-// Mobile pin button — delegates to desktop pin click to keep all state in sync
-const panelPinMobile = document.getElementById("panel-pin-mobile");
-if (panelPinMobile) {
-  panelPinMobile.addEventListener("click", () => panelPin.click());
-}
-
-panelPin.addEventListener("click", () => {
-  const pinned = panel.classList.toggle("pinned");
-  savePinned(pinned);
-  panelPin.classList.toggle("active", pinned);
-  // Keep mobile pin button in sync
-  const mob = document.getElementById("panel-pin-mobile");
-  if (mob) mob.classList.toggle("active", pinned);
-  if (pinned) {
-    backdrop.classList.remove("open");
-  } else if (panel.classList.contains("open")) {
-    backdrop.classList.add("open");
+// Also expand on header click when minimized
+winHeader.addEventListener("click", (e) => {
+  if (_minimized && e.target === winHeader || e.target.id === "win-title" ||
+      e.target.id === "win-title-text" || e.target.id === "win-title-pill") {
+    expandWindow();
   }
 });
 
-// Restore pinned state — no backdrop on restore
-if (loadPersistedPinned()) {
-  panel.classList.add("pinned", "open");
-  panelPin.classList.add("active");
-  document.body.classList.add("panel-open");
-  // Sync mobile pin button if it exists
-  const mob = document.getElementById("panel-pin-mobile");
-  if (mob) mob.classList.add("active");
+// Restore minimized state
+if (loadPersistedWinMin()) minimizeWindow();
+
+// ── Floating window: drag (desktop only) ──────────────
+const isMobile = () => window.innerWidth <= 600;
+
+let dragging = false;
+let dragStartX = 0, dragStartY = 0;
+let winStartX  = 0, winStartY  = 0;
+
+function clamp(val, min, max) { return Math.max(min, Math.min(max, val)); }
+
+function applyPos(x, y) {
+  const maxX = window.innerWidth  - win.offsetWidth;
+  const maxY = window.innerHeight - win.offsetHeight;
+  const cx = clamp(x, 0, Math.max(0, maxX));
+  const cy = clamp(y, 0, Math.max(0, maxY));
+  win.style.left = cx + "px";
+  win.style.top  = cy + "px";
+  win.style.right = "auto";
 }
 
-// ── Observer info display ──────────────────────────────
+winHeader.addEventListener("mousedown", (e) => {
+  if (isMobile()) return;
+  if (e.target.closest(".icon-btn")) return; // don't drag when clicking buttons
+  dragging   = true;
+  dragStartX = e.clientX;
+  dragStartY = e.clientY;
+  const rect = win.getBoundingClientRect();
+  winStartX  = rect.left;
+  winStartY  = rect.top;
+  win.classList.add("dragging");
+  e.preventDefault();
+});
+
+document.addEventListener("mousemove", (e) => {
+  if (!dragging) return;
+  applyPos(winStartX + e.clientX - dragStartX, winStartY + e.clientY - dragStartY);
+});
+
+document.addEventListener("mouseup", () => {
+  if (!dragging) return;
+  dragging = false;
+  win.classList.remove("dragging");
+  const rect = win.getBoundingClientRect();
+  saveWinPos(rect.left, rect.top);
+});
+
+// Touch drag
+winHeader.addEventListener("touchstart", (e) => {
+  if (isMobile()) return;
+  if (e.target.closest(".icon-btn")) return;
+  const t = e.touches[0];
+  dragging   = true;
+  dragStartX = t.clientX;
+  dragStartY = t.clientY;
+  const rect = win.getBoundingClientRect();
+  winStartX  = rect.left;
+  winStartY  = rect.top;
+  e.preventDefault();
+}, { passive: false });
+
+document.addEventListener("touchmove", (e) => {
+  if (!dragging) return;
+  const t = e.touches[0];
+  applyPos(winStartX + t.clientX - dragStartX, winStartY + t.clientY - dragStartY);
+}, { passive: true });
+
+document.addEventListener("touchend", () => {
+  if (!dragging) return;
+  dragging = false;
+  const rect = win.getBoundingClientRect();
+  saveWinPos(rect.left, rect.top);
+});
+
+// Restore or set default position
+const savedPos = loadPersistedWinPos();
+if (savedPos && !isMobile()) {
+  applyPos(savedPos.x, savedPos.y);
+}
+
+// Re-clamp on resize
+window.addEventListener("resize", () => {
+  if (isMobile()) return;
+  const rect = win.getBoundingClientRect();
+  applyPos(rect.left, rect.top);
+});
+
+// ── Observer info ──────────────────────────────────────
 function renderObserverInfo() {
   const obs = getObserver();
   if (!obs) {
@@ -139,8 +198,23 @@ function renderObserverInfo() {
     </div>`;
 }
 
+// ── Window title bar summary ───────────────────────────
+function updateWindowTitle(sat) {
+  if (!sat || !hasObserver()) {
+    winTitleText.textContent = "Satellite Tracker";
+    winTitlePill.textContent = "";
+    winTitlePill.className   = "";
+    return;
+  }
+  winTitleText.textContent  = sat.name;
+  winTitlePill.textContent  = sat.status.toUpperCase();
+  winTitlePill.className    = `status-pill status-${sat.status}`;
+}
+
 // ── Selected satellite detail ──────────────────────────
 function renderSelectedInfo(sat) {
+  updateWindowTitle(sat);
+
   if (!sat) {
     selectedInfo.innerHTML = "";
     clearBearingRay();
@@ -212,25 +286,17 @@ function renderSelectedInfo(sat) {
 }
 
 function buildCompassSvg(az, magAz) {
-  const cx = 36, cy = 36;
-  const r  = 26;
-  const rb = 14;
+  const cx = 36, cy = 36, r = 26, rb = 14;
 
   function needle(angleDeg, color, tipClass) {
     const a   = (angleDeg - 90) * Math.PI / 180;
-    const tx  = cx + r  * Math.cos(a);
-    const ty  = cy + r  * Math.sin(a);
-    const bx  = cx - rb * Math.cos(a);
-    const by  = cy - rb * Math.sin(a);
-    const wa  = 0.5;
-    const wl  = 7;
-    const w1x = tx - wl * Math.cos(a - wa);
-    const w1y = ty - wl * Math.sin(a - wa);
-    const w2x = tx - wl * Math.cos(a + wa);
-    const w2y = ty - wl * Math.sin(a + wa);
+    const tx  = cx + r  * Math.cos(a), ty = cy + r  * Math.sin(a);
+    const bx  = cx - rb * Math.cos(a), by = cy - rb * Math.sin(a);
+    const wa  = 0.5, wl = 7;
+    const w1x = tx - wl * Math.cos(a - wa), w1y = ty - wl * Math.sin(a - wa);
+    const w2x = tx - wl * Math.cos(a + wa), w2y = ty - wl * Math.sin(a + wa);
     return `
-      <line x1="${bx.toFixed(2)}" y1="${by.toFixed(2)}"
-            x2="${tx.toFixed(2)}" y2="${ty.toFixed(2)}"
+      <line x1="${bx.toFixed(2)}" y1="${by.toFixed(2)}" x2="${tx.toFixed(2)}" y2="${ty.toFixed(2)}"
             stroke="${color}" stroke-width="2" stroke-linecap="round"/>
       <polygon points="${tx.toFixed(2)},${ty.toFixed(2)} ${w1x.toFixed(2)},${w1y.toFixed(2)} ${w2x.toFixed(2)},${w2y.toFixed(2)}"
                fill="${color}" class="${tipClass}"/>`;
@@ -247,7 +313,7 @@ function buildCompassSvg(az, magAz) {
       <line x1="${cx}" y1="62" x2="${cx}" y2="69"  class="compass-tick"/>
       <line x1="3"  y1="${cy}" x2="10"  y2="${cy}" class="compass-tick"/>
       <line x1="62" y1="${cy}" x2="69"  y2="${cy}" class="compass-tick"/>
-      ${needle(magAz, "var(--low)", "compass-tip-mag")}
+      ${needle(magAz, "var(--low)",    "compass-tip-mag")}
       ${needle(az,    "var(--accent)", "compass-tip-poly")}
       <circle cx="${cx}" cy="${cy}" r="3" class="compass-center"/>
     </svg>
@@ -257,28 +323,19 @@ function buildCompassSvg(az, magAz) {
     </div>`;
 }
 
-// ── Az / El computation ────────────────────────────────
+// ── Az/El computation ──────────────────────────────────
 function recomputeAllAzEl() {
   const obs  = getObserver();
   const sats = getSatellites();
-
-  // Compute declination once per observer location (same for all sats)
   const decl = obs ? getMagDeclination(obs.lat, obs.lon) : 0;
 
   for (const sat of sats) {
     if (!obs) {
-      sat.az     = 0;
-      sat.magAz  = 0;
-      sat.el     = 0;
-      sat.decl   = 0;
-      sat.status = "bad";
+      sat.az = 0; sat.magAz = 0; sat.el = 0; sat.decl = 0; sat.status = "bad";
     } else {
-      const result = computeAzEl(obs.lat, obs.lon, sat.centerLon, sat.alt_km ?? 35786, decl);
-      sat.az     = result.az;
-      sat.magAz  = result.magAz;
-      sat.el     = result.el;
-      sat.decl   = decl;
-      sat.status = elToStatus(result.el);
+      const r = computeAzEl(obs.lat, obs.lon, sat.centerLon, sat.alt_km ?? 35786, decl);
+      sat.az = r.az; sat.magAz = r.magAz; sat.el = r.el; sat.decl = decl;
+      sat.status = elToStatus(r.el);
     }
   }
 }
@@ -287,7 +344,6 @@ function recomputeAllAzEl() {
 function filteredSatellites() {
   const cutoff = getElevationCutoff();
   const obs    = getObserver();
-  // Only apply cutoff filter once observer is set (otherwise everything would hide)
   if (!obs) return getSatellites();
   return getSatellites().filter(s => s.el >= cutoff);
 }
@@ -300,7 +356,6 @@ function clearAllMarkers() {
 
 function renderSatellites() {
   clearAllMarkers();
-
   const visible = filteredSatellites();
 
   for (const sat of visible) {
@@ -308,7 +363,6 @@ function renderSatellites() {
     activeWrapped[sat.id] = wrapped;
     addSatelliteToMap(wrapped);
 
-    // Click handler on each wrapped marker
     for (const w of wrapped) {
       w.marker.on("click", (e) => {
         L.DomEvent.stopPropagation(e);
@@ -325,7 +379,7 @@ function renderSatellites() {
 // ── Selection ──────────────────────────────────────────
 function selectSatellite(id) {
   setSelectedId(id);
-  openPanel();
+  if (_minimized) expandWindow();
   selectTab("pointing");
   _applyHighlight(id);
   selectTableRow(id);
@@ -347,28 +401,24 @@ function _applyHighlight(id) {
     for (const w of activeWrapped[sid]) {
       const icon = w.marker._icon;
       if (!icon) continue;
-      if (sid === id) icon.classList.add("selected");
-      else            icon.classList.remove("selected");
+      icon.classList.toggle("selected", sid === id);
     }
   }
 }
 
-// ── Map click → deselect ───────────────────────────────
-// map.js fires setUserLocation first (which triggers onLocationChange),
-// then this handler runs to clear any satellite selection.
+// ── Map click → deselect ──────────────────────────────
 map.on("click", () => {
   clearSatelliteHighlight();
   clearTableSelection();
 });
 
-// ── Location change callback ───────────────────────────
+// ── Location change ────────────────────────────────────
 onLocationChange((lat, lon) => {
   setObserver({ lat, lon, heightKm: 0 });
   recomputeAllAzEl();
   renderObserverInfo();
   refreshSatellites();
 
-  // If a satellite is selected, refresh its detail card
   const selId = getSelectedId();
   if (selId) {
     const sat = getSatellites().find(s => s.id === selId);
@@ -395,13 +445,11 @@ elevUnitToggle.addEventListener("change", () => {
   const v = elevUnitToggle.checked ? "zenith" : "horizon";
   setElevUnit(v);
   saveElevUnit(v);
-  // Refresh detail card if a satellite is selected
   const selId = getSelectedId();
   if (selId) {
     const sat = getSatellites().find(s => s.id === selId);
     if (sat) renderSelectedInfo(sat);
   }
-  // Re-render table so elevation column label updates
   updateTable(filteredSatellites());
 });
 
@@ -412,41 +460,34 @@ exportBtn.addEventListener("click", () => {
 
   const latDir = obs.lat >= 0 ? "N" : "S";
   const lonDir = obs.lon >= 0 ? "E" : "W";
-  const header = [
-    "Satellite", "Lon (°)", "True Az (°)", "Mag Az (°)",
-    "Elevation (°)", "Zenith (°)", "Status"
-  ].join(",");
-
-  const rows = sats.map(s =>
+  const header = ["Satellite","Lon (°)","True Az (°)","Mag Az (°)","Elevation (°)","Zenith (°)","Status"].join(",");
+  const rows   = sats.map(s =>
     [s.name, s.centerLon.toFixed(1), s.az.toFixed(1),
      (s.magAz ?? s.az).toFixed(1), s.el.toFixed(1),
      (90 - s.el).toFixed(1), s.status.toUpperCase()].join(",")
   );
-
-  const meta  = `# Observer: ${Math.abs(obs.lat).toFixed(4)}°${latDir} ${Math.abs(obs.lon).toFixed(4)}°${lonDir}`;
-  const decl  = sats[0]?.decl;
+  const meta     = `# Observer: ${Math.abs(obs.lat).toFixed(4)}°${latDir} ${Math.abs(obs.lon).toFixed(4)}°${lonDir}`;
+  const decl     = sats[0]?.decl;
   const declLine = decl !== undefined
     ? `# Mag declination: ${decl >= 0 ? decl.toFixed(1) + "°E" : Math.abs(decl).toFixed(1) + "°W"}`
     : "";
-  const csv   = [meta, declLine, header, ...rows].filter(Boolean).join("\n");
+  const csv = [meta, declLine, header, ...rows].filter(Boolean).join("\n");
 
-  const blob  = new Blob([csv], { type: "text/csv" });
-  const url   = URL.createObjectURL(blob);
-  const a     = document.createElement("a");
-  a.href      = url;
-  a.download  = "satellite-angles.csv";
-  a.click();
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href = url; a.download = "satellite-angles.csv"; a.click();
   URL.revokeObjectURL(url);
 });
 
-// Restore persisted elevation unit
+// Restore elevation unit
 const persistedUnit = loadPersistedElevUnit();
 if (persistedUnit === "zenith") {
   setElevUnit("zenith");
   if (elevUnitToggle) elevUnitToggle.checked = true;
 }
 
-// Footprints default OFF every load — session-only, not persisted
+// Footprints default OFF
 saveFootprint(false);
 footprintToggle.checked = false;
 setShowFootprints(false);

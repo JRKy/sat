@@ -28,20 +28,23 @@
   <!-- Map -->
   <div id="map"></div>
 
-  <!-- Satellite Panel -->
-  <div id="sat-panel" class="panel">
-    <!-- Panel header (desktop: pin + close above tabs) -->
-    <div class="panel-header">
-      <button id="panel-pin" class="icon-btn" title="Pin panel">
-        <span class="material-symbols-rounded">push_pin</span>
-      </button>
-      <button id="panel-close" class="icon-btn" title="Close">
-        <span class="material-symbols-rounded">close</span>
+  <!-- Floating Window -->
+  <div id="sat-window">
+
+    <!-- Drag handle / title bar -->
+    <div id="win-header">
+      <span class="material-symbols-rounded win-icon">satellite_alt</span>
+      <div id="win-title">
+        <span id="win-title-text">Satellite Tracker</span>
+        <span id="win-title-pill"></span>
+      </div>
+      <button id="win-minimize" class="icon-btn" title="Minimize">
+        <span class="material-symbols-rounded">remove</span>
       </button>
     </div>
 
-    <!-- Tab bar (mobile: also carries drag handle + pin + close button) -->
-    <div class="panel-tabs">
+    <!-- Tab bar -->
+    <div id="win-tabs">
       <button class="tab-btn active" data-tab="pointing">
         <span class="material-symbols-rounded">explore</span>
         Pointing
@@ -49,13 +52,6 @@
       <button class="tab-btn" data-tab="list">
         <span class="material-symbols-rounded">format_list_bulleted</span>
         Satellites
-      </button>
-      <!-- Pin + close shown only on mobile inside the tab bar -->
-      <button id="panel-pin-mobile" class="icon-btn tab-close-btn" title="Pin panel">
-        <span class="material-symbols-rounded">push_pin</span>
-      </button>
-      <button id="panel-close-mobile" class="icon-btn tab-close-btn" title="Close">
-        <span class="material-symbols-rounded">keyboard_arrow_down</span>
       </button>
     </div>
 
@@ -92,10 +88,8 @@
       </div>
       <div id="sat-table"></div>
     </div>
-  </div>
 
-  <!-- Backdrop -->
-  <div id="sat-backdrop"></div>
+  </div>
 
   <!-- Search -->
   <div id="search-container">
@@ -103,13 +97,9 @@
     <div id="autocomplete" class="hidden"></div>
   </div>
 
-  <!-- FABs -->
+  <!-- FAB: geolocation only -->
   <button id="geo" class="floating-btn" title="Use my location">
     <span class="material-symbols-rounded">my_location</span>
-  </button>
-
-  <button id="sat-toggle" class="floating-btn" title="Satellites">
-    <span class="material-symbols-rounded">satellite_alt</span>
   </button>
 
   <!-- Libraries -->
