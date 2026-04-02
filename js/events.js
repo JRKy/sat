@@ -260,7 +260,7 @@ function renderSatellites() {
   }
 
   updateTable(visible);
-  updateFootprints(visible, getShowFootprints());
+  updateFootprints(visible, getShowFootprints(), getObserver());
   updateLines(visible, getObserver());
 }
 
@@ -322,7 +322,7 @@ footprintToggle.addEventListener("change", () => {
   const v = footprintToggle.checked;
   setShowFootprints(v);
   saveFootprint(v);
-  updateFootprints(filteredSatellites(), v);
+  updateFootprints(filteredSatellites(), v, getObserver());
 });
 
 cutoffSlider.addEventListener("input", () => {
