@@ -147,7 +147,7 @@ function renderSelectedInfo(sat) {
             </div>
             <div class="angle-item">
               <div class="angle-label">Elevation</div>
-              <div class="angle-val ${sat.el < 0 ? "bad" : sat.el < 10 ? "low-color" : "good-color"}">${sat.el.toFixed(1)}°</div>
+              <div class="angle-val ${sat.el >= 20 ? "good-color" : sat.el >= 5 ? "low-color" : "bad"}">${sat.el.toFixed(1)}°</div>
             </div>
           </div>
         </div>

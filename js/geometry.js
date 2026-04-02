@@ -126,11 +126,14 @@ export function computeAzEl(obsLat, obsLon, satLon, altKm = DEFAULT_SAT_ALT_KM) 
 }
 
 /**
- * Maps elevation to status string.
+ * Maps elevation to status string using industry-standard thresholds.
+ *   good  ≥ 20° — reliable link, clean sky angle
+ *   low   ≥  5° — marginal; increased path loss and rain-fade risk
+ *   bad   <  5° — below practical minimum; terrain/atmosphere blockage likely
  */
 export function elToStatus(el) {
-  if (el >= 10) return "good";
-  if (el >= 0)  return "low";
+  if (el >= 20) return "good";
+  if (el >=  5) return "low";
   return "bad";
 }
 
