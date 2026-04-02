@@ -415,6 +415,290 @@ html, body {
 }
 
 /* =========================================
+   Observer + Selected Info Cards
+========================================= */
+.info-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 14px;
+}
+
+.info-card.hint {
+  color: var(--text-muted);
+  border-style: dashed;
+}
+
+.info-card .material-symbols-rounded {
+  font-size: 22px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.info-card.hint .material-symbols-rounded { color: var(--text-muted); }
+
+.info-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.info-value { font-size: 14px; font-weight: 600; font-family: var(--font-mono); margin-top: 2px; }
+
+/* =========================================
+   Selected Satellite Detail Card
+========================================= */
+.detail-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.detail-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.detail-header .material-symbols-rounded {
+  font-size: 20px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.detail-name { font-size: 15px; font-weight: 600; line-height: 1.2; }
+.detail-lon  { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.detail-header .status-pill { margin-left: auto; flex-shrink: 0; }
+
+.detail-angles { padding: 14px; }
+
+.angle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.angle-values {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.angle-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.angle-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+  margin-bottom: 4px;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: break-word;
+  line-height: 1.2;
+}
+
+.angle-val {
+  font-size: 20px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  letter-spacing: -0.5px;
+}
+
+.angle-val.good-color { color: var(--good); }
+.angle-val.low-color  { color: var(--low); }
+.angle-val.bad        { color: var(--bad); }
+
+/* =========================================
+   Compass SVG
+========================================= */
+.compass { display: block; flex-shrink: 0; width: 64px; height: 64px; }
+
+.compass-ring      { fill: var(--bg-hover); stroke: var(--border); stroke-width: 1.5; }
+.compass-dir       { font-size: 8px; font-family: var(--font); fill: var(--text-muted); font-weight: 700; }
+.compass-tick      { stroke: var(--border-dark); stroke-width: 1.5; stroke-linecap: round; }
+.compass-needle    { stroke: var(--accent); stroke-width: 2; stroke-linecap: round; }
+.compass-tip-poly  { fill: var(--accent); }
+.compass-center    { fill: var(--text-muted); }
+
+/* =========================================
+   Status Pills
+========================================= */
+.status-pill {
+  padding: 3px 10px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-block;
+  letter-spacing: 0.3px;
+  text-align: center;
+}
+
+.status-good { background: var(--good-bg); color: var(--good); }
+.status-low  { background: var(--low-bg);  color: var(--low); }
+.status-bad  { background: var(--bad-bg);  color: var(--bad); }
+
+/* =========================================
+   Satellite Table
+========================================= */
+#sat-table { flex: 1; min-height: 0; overflow-x: auto; }
+
+#sat-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+#sat-table thead { background: var(--bg-panel-header); }
+
+#sat-table th {
+  text-align: left;
+  padding: 9px 7px;
+  font-weight: 600;
+  font-size: 10px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s;
+  white-space: nowrap;
+}
+
+#sat-table th:hover { color: var(--text); }
+#sat-table th.sort-asc::after  { content: " ▲"; font-size: 9px; }
+#sat-table th.sort-desc::after { content: " ▼"; font-size: 9px; }
+
+#sat-table tbody tr {
+  cursor: pointer;
+  transition: background 0.1s;
+  border-left: 3px solid transparent;
+}
+
+#sat-table tbody tr:hover    { background: var(--bg-hover); }
+#sat-table tbody tr.selected {
+  background: var(--accent-subtle);
+  border-left-color: var(--accent);
+}
+
+#sat-table td {
+  padding: 9px 7px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+  font-size: 12px;
+}
+
+#sat-table td:nth-child(2),
+#sat-table td:nth-child(3),
+#sat-table td:nth-child(4),
+#sat-table td:nth-child(5) {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+#sat-table td:last-child { text-align: right; }
+#sat-table tbody tr:last-child td { border-bottom: none; }
+
+/* =========================================
+   Satellite & User Markers
+========================================= */
+.sat-marker span.material-symbols-rounded {
+  font-size: 26px;
+  color: var(--accent);
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,0.25));
+  transition: color 0.15s, transform 0.15s;
+  display: block;
+}
+
+.sat-marker.selected span.material-symbols-rounded {
+  color: var(--accent-hover);
+  transform: scale(1.2);
+  filter: drop-shadow(0 2px 6px rgba(26,115,232,0.5));
+}
+
+span.user-marker {
+  font-size: 34px;
+  color: #d93025;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+  display: block;
+}
+
+/* Satellite labels */
+.sat-label {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 3px 7px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+  white-space: nowrap;
+  text-align: center;
+  line-height: 1.4;
+  color: var(--text);
+  pointer-events: none;
+}
+
+.sat-label .name { display: block; }
+
+/* =========================================
+   Leaflet Overrides
+========================================= */
+.leaflet-control { z-index: 600 !important; }
+
+.leaflet-top.leaflet-left    { margin-top: 16px; margin-left: 16px; }
+.leaflet-bottom.leaflet-left { margin-bottom: 16px; margin-left: 16px; }
+.leaflet-bottom.leaflet-right { margin-bottom: 16px; margin-right: 16px; }
+
+.leaflet-control-layers,
+.leaflet-control-scale,
+.leaflet-control-zoom {
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
+
+.leaflet-control-zoom a {
+  background: var(--bg) !important;
+  border-color: var(--border) !important;
+  color: var(--text) !important;
+}
+
+.leaflet-control-zoom a:hover { background: var(--bg-hover) !important; }
+
+.leaflet-control-scale-line {
+  background: var(--bg);
+  border-color: var(--border);
+  color: var(--text);
+  font-size: 11px;
+}
+
+.leaflet-control-layers-base label { color: var(--text); }
+
+.leaflet-control-layers {
+  background: var(--bg) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-sm) !important;
+  box-shadow: var(--shadow) !important;
+  color: var(--text) !important;
+}
+
+/* =========================================
    Scrollbars
 ========================================= */
 ::-webkit-scrollbar { width: 6px; }
