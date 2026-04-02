@@ -46,6 +46,19 @@ const exportBtn       = document.getElementById("export-btn");
 const observerInfo    = document.getElementById("observer-info");
 const selectedInfo    = document.getElementById("selected-info");
 
+// ── Tab switching ──────────────────────────────────────
+const tabBtns  = document.querySelectorAll(".tab-btn");
+const tabPanes = document.querySelectorAll(".tab-pane");
+
+export function selectTab(name) {
+  tabBtns.forEach(b  => b.classList.toggle("active",  b.dataset.tab === name));
+  tabPanes.forEach(p => p.classList.toggle("active",  p.id === `tab-${name}`));
+}
+
+tabBtns.forEach(btn => {
+  btn.addEventListener("click", () => selectTab(btn.dataset.tab));
+});
+
 // ── Active marker store ────────────────────────────────
 let activeWrapped = {}; // id → wrappedSet
 
@@ -297,6 +310,7 @@ function renderSatellites() {
 function selectSatellite(id) {
   setSelectedId(id);
   openPanel();
+  selectTab("pointing");
   _applyHighlight(id);
   selectTableRow(id);
 
