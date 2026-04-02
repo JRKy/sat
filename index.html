@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Satellite Antenna Tracker</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.json" />
 
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -60,6 +61,18 @@
             <span>Show Footprints</span>
           </label>
         </div>
+
+        <div class="control-row">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" id="elev-unit-toggle" />
+            <span>Zenith angle</span>
+          </label>
+        </div>
+
+        <button id="export-btn" class="export-btn" title="Export satellite angles as CSV">
+          <span class="material-symbols-rounded">download</span>
+          Export CSV
+        </button>
       </div>
 
       <!-- Satellite list table -->
@@ -92,6 +105,13 @@
 
   <!-- App -->
   <script type="module" src="js/app.js"></script>
+
+  <!-- PWA service worker -->
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sat/sw.js").catch(() => {});
+    }
+  </script>
 
 </body>
 </html>
