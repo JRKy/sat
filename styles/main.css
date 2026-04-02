@@ -254,20 +254,61 @@ html, body {
   font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
 
-/* Panel Content */
-.panel-content {
-  padding: 16px;
-  overflow-y: auto;
-  flex: 1;
+/* Panel Tabs */
+.panel-tabs {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  flex-shrink: 0;
+  background: var(--bg-panel-header);
+  border-bottom: 1px solid var(--border);
 }
 
+.tab-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 8px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-family: var(--font);
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.tab-btn .material-symbols-rounded { font-size: 18px; }
+
+.tab-btn:hover  { color: var(--text); }
+
+.tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* Tab Panes */
+.tab-pane {
+  display: none;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: 14px;
+  gap: 12px;
+  overflow-y: auto;
+}
+
+.tab-pane.active { display: flex; }
+
+/* Controls inside list tab */
 .panel-controls {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  flex-shrink: 0;
 }
 
 .control-row {
@@ -607,10 +648,10 @@ body.panel-open .leaflet-bottom.leaflet-right {
   #sat-panel {
     top: auto;
     right: 0 !important;
-    bottom: calc(-60vh);           /* 60vh instead of 80vh — less map coverage */
+    bottom: calc(-55vh);
     left: 0;
     width: 100%;
-    height: 60vh;
+    height: 55vh;
     border-left: none;
     border-top: 1px solid var(--border);
     border-radius: 20px 20px 0 0;
@@ -640,16 +681,17 @@ body.panel-open .leaflet-bottom.leaflet-right {
   .panel-header {
     position: relative;
     justify-content: flex-end;
-    padding: 6px 8px 4px;          /* tighter header */
+    padding: 6px 8px 4px;
   }
 
-  .icon-btn { padding: 6px; }      /* smaller tap targets still fine at 44px+ */
+  .icon-btn { padding: 6px; }
 
-  /* Tighter content area */
-  .panel-content {
-    padding: 10px 12px;
-    gap: 8px;
-  }
+  /* Tighter tab bar */
+  .tab-btn { padding: 8px 6px; font-size: 12px; }
+  .tab-btn .material-symbols-rounded { font-size: 16px; }
+
+  /* Tighter pane */
+  .tab-pane { padding: 10px 12px; gap: 8px; }
 
   .panel-controls { gap: 6px; }
 
@@ -665,14 +707,9 @@ body.panel-open .leaflet-bottom.leaflet-right {
   .info-value { font-size: 13px; margin-top: 1px; }
 
   /* Compact detail card */
-  .detail-header {
-    padding: 8px 10px;
-    gap: 8px;
-  }
-
-  .detail-name { font-size: 14px; }
-  .detail-lon  { font-size: 11px; }
-
+  .detail-header { padding: 8px 10px; gap: 8px; }
+  .detail-name   { font-size: 14px; }
+  .detail-lon    { font-size: 11px; }
   .detail-angles { padding: 8px 10px; }
 
   /* Stack compass above angle values on mobile */
@@ -688,20 +725,16 @@ body.panel-open .leaflet-bottom.leaflet-right {
     gap: 4px;
   }
 
-  /* Shrink compass */
-  .compass { width: 52px; height: 52px; }
+  .compass      { width: 52px; height: 52px; }
+  .angle-val    { font-size: 16px; }
+  .angle-label  { font-size: 9px; margin-bottom: 2px; }
 
-  .angle-val   { font-size: 16px; }
-  .angle-label { font-size: 9px; margin-bottom: 2px; }
-
-  /* Tighter decl row */
   .decl-row { margin-top: 6px; padding-top: 6px; font-size: 11px; }
 
   /* Tighter table rows */
   #sat-table td,
   #sat-table th { padding: 7px 6px; font-size: 12px; }
-
-  #sat-table th { font-size: 10px; }
+  #sat-table th  { font-size: 10px; }
 
   /* Search — avoid layer controls overlap */
   #search-container { width: calc(100vw - 96px); }
