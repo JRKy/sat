@@ -11,7 +11,7 @@
 On load the app requests your GPS location automatically. You can also click anywhere on the map, use the search bar, or tap the location button. The app immediately computes pointing angles to every satellite and shows:
 
 - **Azimuth and elevation** for each satellite from your position
-- **Status** — Good (≥10°), Low (0–10°), or Bad (below horizon)
+- **Status** — Good (≥20°), Low (5–20°), or Bad (<5°)
 - **Great-circle look-angle lines** on the map, colored and styled by status (solid green/amber, dashed red)
 - **Satellite name labels** visible at all zoom levels
 - **Coverage footprints** (optional toggle, off by default) showing each satellite's visibility zone
