@@ -39,45 +39,50 @@
       </button>
     </div>
 
-    <div class="panel-content">
+    <!-- Tab bar -->
+    <div class="panel-tabs">
+      <button class="tab-btn active" data-tab="pointing">
+        <span class="material-symbols-rounded">explore</span>
+        Pointing
+      </button>
+      <button class="tab-btn" data-tab="list">
+        <span class="material-symbols-rounded">format_list_bulleted</span>
+        Satellites
+      </button>
+    </div>
 
-      <!-- Observer location card -->
+    <!-- Tab: Pointing -->
+    <div class="tab-pane active" id="tab-pointing">
       <div id="observer-info"></div>
-
-      <!-- Selected satellite detail card -->
       <div id="selected-info"></div>
+    </div>
 
-      <!-- Controls -->
+    <!-- Tab: Satellites -->
+    <div class="tab-pane" id="tab-list">
       <div class="panel-controls">
         <div class="control-row">
           <span class="control-label">Min Elevation</span>
           <input type="range" id="cutoff" min="0" max="90" value="0" />
           <span class="control-value"><span id="cutoff-value">0</span>°</span>
         </div>
-
         <div class="control-row">
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
             <input type="checkbox" id="footprint-toggle" />
             <span>Show Footprints</span>
           </label>
         </div>
-
         <div class="control-row">
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
             <input type="checkbox" id="elev-unit-toggle" />
             <span>Zenith angle</span>
           </label>
         </div>
-
         <button id="export-btn" class="export-btn" title="Export satellite angles as CSV">
           <span class="material-symbols-rounded">download</span>
           Export CSV
         </button>
       </div>
-
-      <!-- Satellite list table -->
       <div id="sat-table"></div>
-
     </div>
   </div>
 
