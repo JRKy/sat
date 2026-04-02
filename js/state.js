@@ -43,7 +43,13 @@ export function loadPersistedFootprint() {
   try { return localStorage.getItem(FOOTPRINT_KEY) === "true"; } catch { return false; }
 }
 export function saveFootprint(v) {
-  try { localStorage.setItem(FOOTPRINT_KEY, v ? "true" : "false"); } catch {}
+  try {
+    if (v) {
+      localStorage.setItem(FOOTPRINT_KEY, "true");
+    } else {
+      localStorage.removeItem(FOOTPRINT_KEY); // absence = off (the default)
+    }
+  } catch {}
 }
 export function loadPersistedPinned() {
   try { return localStorage.getItem(PIN_KEY) === "true"; } catch { return false; }

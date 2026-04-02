@@ -25,7 +25,7 @@ import {
   getSelectedId, setSelectedId,
   getShowFootprints, setShowFootprints,
   getElevationCutoff, setElevationCutoff,
-  loadPersistedFootprint, saveFootprint,
+  saveFootprint,
   loadPersistedPinned, savePinned
 } from "./state.js";
 
@@ -332,12 +332,11 @@ cutoffSlider.addEventListener("input", () => {
   refreshSatellites();
 });
 
-// Restore persisted footprint toggle
-const persistedFootprint = loadPersistedFootprint();
-if (persistedFootprint) {
-  setShowFootprints(true);
-  footprintToggle.checked = true;
-}
+// Footprints default OFF every load — session-only, not persisted
+// (removes any stale "true" left from a previous session)
+saveFootprint(false);
+footprintToggle.checked = false;
+setShowFootprints(false);
 
 // ── Public API ─────────────────────────────────────────
 export function initEvents(satList) {
