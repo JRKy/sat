@@ -48,6 +48,11 @@ map.createPane(FOOTPRINT_PANE);
 map.getPane(FOOTPRINT_PANE).style.zIndex = 300;
 map.getPane(FOOTPRINT_PANE).style.pointerEvents = "none";
 
+export const LINE_PANE = "line-pane";
+map.createPane(LINE_PANE);
+map.getPane(LINE_PANE).style.zIndex = 380;
+map.getPane(LINE_PANE).style.pointerEvents = "none";
+
 export const SAT_PANE = "satellite-pane";
 map.createPane(SAT_PANE);
 map.getPane(SAT_PANE).style.zIndex = 450;

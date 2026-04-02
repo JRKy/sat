@@ -17,6 +17,7 @@ import {
 } from "./markers.js";
 import { updateTable, clearTableSelection, selectTableRow } from "./table.js";
 import { updateFootprints } from "./footprints.js";
+import { updateLines } from "./lines.js";
 import { computeAzEl, elToStatus } from "./geometry.js";
 import {
   getSatellites, setSatellites,
@@ -65,24 +66,19 @@ backdrop.addEventListener("click", closePanel);
 panelPin.addEventListener("click", () => {
   const pinned = panel.classList.toggle("pinned");
   savePinned(pinned);
+  panelPin.classList.toggle("active", pinned);
   if (pinned) {
-    // Pinned: panel sits alongside map, no backdrop needed
     backdrop.classList.remove("open");
   } else if (panel.classList.contains("open")) {
-    // Unpinned while still open: restore backdrop
     backdrop.classList.add("open");
   }
-  panelPin.querySelector(".material-symbols-rounded").style.fontVariationSettings =
-    pinned ? "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24"
-           : "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24";
 });
 
 // Restore pinned state — no backdrop on restore
 if (loadPersistedPinned()) {
   panel.classList.add("pinned", "open");
+  panelPin.classList.add("active");
   document.body.classList.add("panel-open");
-  panelPin.querySelector(".material-symbols-rounded").style.fontVariationSettings =
-    "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24";
 }
 
 // ── Observer info display ──────────────────────────────
@@ -265,6 +261,7 @@ function renderSatellites() {
 
   updateTable(visible);
   updateFootprints(visible, getShowFootprints());
+  updateLines(visible, getObserver());
 }
 
 // ── Selection ──────────────────────────────────────────
