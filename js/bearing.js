@@ -1,95 +1,85 @@
 // ======================================================
 // bearing.js
-// Short bearing ray drawn from the observer pin in the
-// direction of the selected satellite. Helps physically
-// orient a dish — "point this way on the ground."
-//
-// The ray is ~500 km long in the true-azimuth direction
-// and is drawn in a dedicated pane above look-angle lines.
+// Bearing ray from the observer toward the selected
+// satellite — shows which direction to point a dish.
+// Drawn as a dashed polyline + arrowhead polygon,
+// both in BEARING_PANE so they sit above look-angle
+// lines but below satellite icons.
 // ======================================================
 
 import { map, BEARING_PANE } from "./map.js";
 import { toRad, toDeg } from "./geometry.js";
 
-const RAY_KM   = 600;   // visual length of bearing ray
-const R_EARTH  = 6371;
+const RAY_KM  = 1500; // visible at world zoom (~13° arc)
+const R_EARTH = 6371;
 
-let _rayLayer  = null;
-let _obsBubble = null;
+let _layers = []; // all active Leaflet layers for this ray
 
 // ── Public API ─────────────────────────────────────────
 
-/**
- * Draw (or update) the bearing ray from obs toward sat.az.
- * @param {{ lat, lon }} obs
- * @param {number}       az   True azimuth (degrees, 0 = North)
- * @param {string}       status  'good' | 'low' | 'bad'
- */
 export function updateBearingRay(obs, az, status) {
   clearBearingRay();
   if (!obs) return;
 
-  const tip  = _destinationPoint(obs.lat, obs.lon, az, RAY_KM);
   const color = _statusColor(status);
+  const tip   = _dest(obs.lat, obs.lon, az, RAY_KM);
 
-  // Dashed ray line
-  _rayLayer = L.polyline(
-    [[obs.lat, obs.lon], [tip.lat, tip.lon]],
-    {
+  // Dashed shaft
+  _layers.push(
+    L.polyline([[obs.lat, obs.lon], [tip.lat, tip.lon]], {
       pane:      BEARING_PANE,
       color,
-      weight:    3,
-      opacity:   0.9,
-      dashArray: "8 6",
-      lineCap:   "round",
-    }
-  ).addTo(map);
+      weight:    2.5,
+      opacity:   0.85,
+      dashArray: "10 7",
+    }).addTo(map)
+  );
 
-  // Small arrowhead at the tip using a rotated divIcon
-  const arrowHtml = `
-    <svg viewBox="0 0 20 20" width="20" height="20"
-         style="transform:rotate(${az}deg); display:block;">
-      <polygon points="10,0 18,18 10,13 2,18"
-               fill="${color}" opacity="0.9"/>
-    </svg>`;
+  // Arrowhead — small triangle at tip, oriented along the bearing.
+  // Build three points relative to tip in lat/lon space.
+  const HEAD_KM  = 60;  // length of arrowhead
+  const WING_KM  = 30;  // half-width of arrowhead base
+  const tipPt    = tip;
+  const basePt   = _dest(tip.lat, tip.lon, (az + 180) % 360, HEAD_KM);
+  const leftPt   = _dest(basePt.lat, basePt.lon, (az - 90 + 360) % 360, WING_KM);
+  const rightPt  = _dest(basePt.lat, basePt.lon, (az + 90) % 360, WING_KM);
 
-  _obsBubble = L.marker([tip.lat, tip.lon], {
-    icon: L.divIcon({
-      className:  "",
-      html:       arrowHtml,
-      iconSize:   [20, 20],
-      iconAnchor: [10, 10],
-    }),
-    pane:        BEARING_PANE,
-    interactive: false,
-  }).addTo(map);
+  _layers.push(
+    L.polygon(
+      [[tipPt.lat, tipPt.lon], [leftPt.lat, leftPt.lon], [rightPt.lat, rightPt.lon]],
+      {
+        pane:        BEARING_PANE,
+        color,
+        fillColor:   color,
+        fillOpacity: 0.9,
+        weight:      0,
+        interactive: false,
+      }
+    ).addTo(map)
+  );
 }
 
 export function clearBearingRay() {
-  if (_rayLayer)  { map.removeLayer(_rayLayer);  _rayLayer  = null; }
-  if (_obsBubble) { map.removeLayer(_obsBubble); _obsBubble = null; }
+  _layers.forEach(l => map.removeLayer(l));
+  _layers = [];
 }
 
 // ── Helpers ────────────────────────────────────────────
 
 /**
- * Destination point given start, bearing (degrees), distance (km).
- * Uses spherical Earth (Haversine inverse).
+ * Destination point from (lat, lon) along bearing (°) for distKm km.
  */
-function _destinationPoint(lat, lon, bearing, distKm) {
-  const φ1 = toRad(lat);
-  const λ1 = toRad(lon);
-  const θ  = toRad(bearing);
-  const δ  = distKm / R_EARTH;
-
-  const sinφ2 = Math.sin(φ1) * Math.cos(δ) +
-                Math.cos(φ1) * Math.sin(δ) * Math.cos(θ);
-  const φ2    = Math.asin(sinφ2);
-  const λ2    = λ1 + Math.atan2(
+function _dest(lat, lon, bearing, distKm) {
+  const φ1   = toRad(lat);
+  const λ1   = toRad(lon);
+  const θ    = toRad(bearing);
+  const δ    = distKm / R_EARTH;
+  const sinφ = Math.sin(φ1) * Math.cos(δ) + Math.cos(φ1) * Math.sin(δ) * Math.cos(θ);
+  const φ2   = Math.asin(sinφ);
+  const λ2   = λ1 + Math.atan2(
     Math.sin(θ) * Math.sin(δ) * Math.cos(φ1),
-    Math.cos(δ) - Math.sin(φ1) * sinφ2
+    Math.cos(δ) - Math.sin(φ1) * sinφ
   );
-
   return { lat: toDeg(φ2), lon: toDeg(λ2) };
 }
 
