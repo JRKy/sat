@@ -86,10 +86,19 @@ backdrop.addEventListener("click", closePanel);
 const panelCloseMobile = document.getElementById("panel-close-mobile");
 if (panelCloseMobile) panelCloseMobile.addEventListener("click", closePanel);
 
+// Mobile pin button — delegates to desktop pin click to keep all state in sync
+const panelPinMobile = document.getElementById("panel-pin-mobile");
+if (panelPinMobile) {
+  panelPinMobile.addEventListener("click", () => panelPin.click());
+}
+
 panelPin.addEventListener("click", () => {
   const pinned = panel.classList.toggle("pinned");
   savePinned(pinned);
   panelPin.classList.toggle("active", pinned);
+  // Keep mobile pin button in sync
+  const mob = document.getElementById("panel-pin-mobile");
+  if (mob) mob.classList.toggle("active", pinned);
   if (pinned) {
     backdrop.classList.remove("open");
   } else if (panel.classList.contains("open")) {
@@ -102,6 +111,9 @@ if (loadPersistedPinned()) {
   panel.classList.add("pinned", "open");
   panelPin.classList.add("active");
   document.body.classList.add("panel-open");
+  // Sync mobile pin button if it exists
+  const mob = document.getElementById("panel-pin-mobile");
+  if (mob) mob.classList.add("active");
 }
 
 // ── Observer info display ──────────────────────────────
