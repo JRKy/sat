@@ -290,7 +290,8 @@ html, body {
   border-bottom-color: var(--accent);
 }
 
-/* Tab Panes */
+/* Tab close button — mobile only */
+.tab-close-btn { display: none; }
 .tab-pane {
   display: none;
   flex-direction: column;
@@ -669,8 +670,16 @@ body.panel-open .leaflet-bottom.leaflet-right {
     bottom: 0;
   }
 
-  /* Drag handle */
-  .panel-header::before {
+  /* Hide the desktop pin/close header — tabs take over on mobile */
+  .panel-header { display: none; }
+
+  /* Drag handle on the tab bar instead */
+  .panel-tabs {
+    position: relative;
+    padding-top: 14px; /* room for drag handle */
+  }
+
+  .panel-tabs::before {
     content: "";
     position: absolute;
     top: 6px;
@@ -682,13 +691,8 @@ body.panel-open .leaflet-bottom.leaflet-right {
     border-radius: 2px;
   }
 
-  .panel-header {
-    position: relative;
-    justify-content: flex-end;
-    padding: 6px 8px 4px;
-  }
-
-  .icon-btn { padding: 6px; }
+  /* Show chevron-down close button inside tab bar */
+  .tab-close-btn { display: flex; }
 
   /* Tighter tab bar */
   .tab-btn { padding: 8px 6px; font-size: 12px; }
