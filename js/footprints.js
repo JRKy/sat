@@ -36,27 +36,22 @@ export function updateFootprints(satList, enabled) {
     if (!boundary || boundary.length < 3) return;
 
     const unwrapped = _unwrapRing(boundary);
-    const offsets   = [0, 360, -360];
     const layers    = [];
 
-    for (const offset of offsets) {
-      const shifted = unwrapped.map(([lat, lon]) => [lat, lon + offset]);
+    const fill = L.polygon(unwrapped, {
+      pane: FOOTPRINT_PANE,
+      color, weight: 1, opacity: 0,
+      fillColor: color, fillOpacity: 0.07,
+      interactive: false
+    }).addTo(map);
 
-      const fill = L.polygon(shifted, {
-        pane: FOOTPRINT_PANE,
-        color, weight: 1, opacity: 0,
-        fillColor: color, fillOpacity: 0.07,
-        noWrap: true, interactive: false
-      }).addTo(map);
+    const outline = L.polyline(unwrapped, {
+      pane: FOOTPRINT_PANE,
+      color, weight: 2, opacity: 0.85,
+      smoothFactor: 1, interactive: false
+    }).addTo(map);
 
-      const outline = L.polyline(shifted, {
-        pane: FOOTPRINT_PANE,
-        color, weight: 2, opacity: 0.85,
-        smoothFactor: 1, noWrap: true, interactive: false
-      }).addTo(map);
-
-      layers.push(fill, outline);
-    }
+    layers.push(fill, outline);
 
     footprintLayers.set(sat.name, L.layerGroup(layers).addTo(map));
   });
