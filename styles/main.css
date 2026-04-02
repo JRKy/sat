@@ -403,13 +403,14 @@ html, body {
 .angle-row {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 10px;
 }
 
 .angle-values {
   display: flex;
-  gap: 20px;
+  gap: 6px;
   flex: 1;
+  min-width: 0;
 }
 
 .angle-item {
@@ -417,6 +418,7 @@ html, body {
   flex-direction: column;
   align-items: center;
   flex: 1;
+  min-width: 0;
 }
 
 .angle-label {
@@ -426,7 +428,9 @@ html, body {
   letter-spacing: 0.2px;
   margin-bottom: 4px;
   text-align: center;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: break-word;
+  line-height: 1.2;
 }
 
 .angle-val {
@@ -443,7 +447,7 @@ html, body {
 /* =========================================
    Compass SVG
 ========================================= */
-.compass { display: block; flex-shrink: 0; }
+.compass { display: block; flex-shrink: 0; width: 64px; height: 64px; }
 
 .compass-ring      { fill: var(--bg-hover); stroke: var(--border); stroke-width: 1.5; }
 .compass-dir       { font-size: 8px; font-family: var(--font); fill: var(--text-muted); font-weight: 700; }
@@ -817,9 +821,6 @@ body.panel-open .leaflet-bottom.leaflet-right {
 }
 
 .decl-text strong { color: var(--text); }
-
-/* Three angle items — tighter gap */
-.angle-values { gap: 6px; }
 
 /* =========================================
    Export button
