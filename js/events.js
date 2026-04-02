@@ -82,6 +82,10 @@ export function closePanel() {
 panelClose.addEventListener("click", closePanel);
 backdrop.addEventListener("click", closePanel);
 
+// Mobile close button (chevron-down inside the tab bar)
+const panelCloseMobile = document.getElementById("panel-close-mobile");
+if (panelCloseMobile) panelCloseMobile.addEventListener("click", closePanel);
+
 panelPin.addEventListener("click", () => {
   const pinned = panel.classList.toggle("pinned");
   savePinned(pinned);
