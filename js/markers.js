@@ -34,7 +34,9 @@ function updateLabelVisibility() {
 map.on("zoomend", updateLabelVisibility);
 
 // ── Wrapped satellite markers ──────────────────────────
-const WORLD_OFFSETS = [-360, 0, 360];
+// Single canonical position only — Leaflet's worldCopyJump
+// and tile rendering handle visual continuity when panning.
+const WORLD_OFFSETS = [0];
 
 /**
  * Creates wrapped markers for all world copies.
