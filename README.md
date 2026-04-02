@@ -8,15 +8,16 @@
 
 ## What it does
 
-Set your location by clicking the map, using the search bar, or hitting the GPS button. The app immediately computes pointing angles to every satellite in the list and shows:
+On load the app requests your GPS location automatically. You can also click anywhere on the map, use the search bar, or tap the location button. The app immediately computes pointing angles to every satellite and shows:
 
 - **Azimuth and elevation** for each satellite from your position
 - **Status** — Good (≥10°), Low (0–10°), or Bad (below horizon)
-- **Great-circle look-angle lines** on the map, colored by status
-- **Coverage footprints** (optional toggle) showing each satellite's visibility zone
-- **Compass rose** in the detail card for the selected satellite
+- **Great-circle look-angle lines** on the map, colored and styled by status (solid green/amber, dashed red)
+- **Satellite name labels** visible at all zoom levels
+- **Coverage footprints** (optional toggle, off by default) showing each satellite's visibility zone
+- **Compass rose + angle readout** in the detail card when a satellite is selected
 
-Satellite labels appear automatically at higher zoom levels. The panel can be pinned open alongside the map or used as a slide-out drawer. State (pin, footprints) persists across sessions via `localStorage`. Dark mode follows system preference.
+The satellite panel slides in from the right (desktop) or up from the bottom (mobile) when you click a satellite marker or table row. It can be pinned open alongside the map. The pin state persists across sessions. Dark mode follows system preference.
 
 ---
 
@@ -55,7 +56,7 @@ No build step. No framework. No API keys.
 | Icons | [Material Symbols Rounded](https://fonts.google.com/icons) |
 | Fonts | Google Sans · Roboto Mono |
 
-All satellite math (az/el, footprint geometry, great-circle lines) is done in plain JS with no external dependencies.
+All satellite math (az/el, footprint geometry, great-circle lines) is plain JS with no external dependencies.
 
 ---
 
@@ -68,15 +69,15 @@ sat/
 ├── styles/
 │   └── main.css
 └── js/
-    ├── app.js             # bootstrap
+    ├── app.js             # bootstrap, geolocation, FAB wiring
     ├── state.js           # single source of truth
     ├── map.js             # Leaflet init, panes, user marker
-    ├── markers.js         # satellite icons + zoom-aware labels
-    ├── lines.js           # look-angle lines (status-colored)
+    ├── markers.js         # satellite icons + always-visible name labels
+    ├── lines.js           # look-angle lines (status-colored geodesics)
     ├── footprints.js      # coverage footprint polygons
     ├── geometry.js        # pure math: az/el, footprint boundary
     ├── events.js          # user interactions, panel, selection
-    ├── table.js           # satellite list table
+    ├── table.js           # satellite list table with sorting
     └── autocomplete.js    # Nominatim location search
 ```
 
@@ -84,7 +85,7 @@ sat/
 
 ## Hosting on GitHub Pages
 
-The repo is already configured to serve from the `main` branch root. To deploy:
+The repo is configured to serve from the `main` branch root. To deploy:
 
 ```bash
 git add .
@@ -99,3 +100,4 @@ GitHub Pages will publish automatically to [https://jrky.github.io/sat/](https:/
 ## License
 
 MIT © 2026 Josh Kennedy
+
