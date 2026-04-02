@@ -30,7 +30,6 @@ export const map = L.map("map", {
   zoom: 2,
   zoomControl: true,
   worldCopyJump: true,
-  preferCanvas: true,
   layers: [street]
 });
 
