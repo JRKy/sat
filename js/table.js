@@ -4,7 +4,7 @@
 // ======================================================
 
 import { highlightSatellite } from "./events.js";
-import { hasObserver } from "./state.js";
+import { hasObserver, getElevUnit } from "./state.js";
 
 // ── Internal state ─────────────────────────────────────
 let tableContainer = null;
@@ -16,7 +16,7 @@ let sortDirection  = "asc";
 function compare(a, b) {
   let v1 = a[sortColumn];
   let v2 = b[sortColumn];
-  if (["centerLon", "az", "el"].includes(sortColumn)) { v1 = Number(v1); v2 = Number(v2); }
+  if (["centerLon","az","magAz","el"].includes(sortColumn)) { v1 = Number(v1); v2 = Number(v2); }
   if (v1 < v2) return sortDirection === "asc" ? -1 : 1;
   if (v1 > v2) return sortDirection === "asc" ?  1 : -1;
   return 0;
@@ -24,37 +24,46 @@ function compare(a, b) {
 
 // ── Rendering ──────────────────────────────────────────
 function headerCell(label, key) {
-  const isSorted   = sortColumn === key;
-  const sortClass  = isSorted ? `sort-${sortDirection}` : "";
-  return `<th data-col="${key}" class="${sortClass}">${label}</th>`;
+  const isSorted  = sortColumn === key;
+  const cls       = isSorted ? `sort-${sortDirection}` : "";
+  return `<th data-col="${key}" class="${cls}">${label}</th>`;
 }
 
 function renderTable() {
   satellites.sort(compare);
-  const showAngles = hasObserver();
+  const show    = hasObserver();
+  const unit    = getElevUnit();
+  const elLabel = unit === "zenith" ? "Zenith" : "El";
 
-  const rows = satellites.map(sat => `
+  const rows = satellites.map(sat => {
+    const elVal = show
+      ? (unit === "zenith" ? (90 - sat.el).toFixed(1) : sat.el.toFixed(1)) + "°"
+      : "—";
+    return `
     <tr data-id="${sat.id}">
       <td>${sat.name}</td>
       <td>${sat.centerLon.toFixed(1)}°</td>
-      <td>${showAngles ? sat.az.toFixed(1) + "°" : "—"}</td>
-      <td>${showAngles ? sat.el.toFixed(1) + "°" : "—"}</td>
+      <td>${show ? sat.az.toFixed(1)  + "°" : "—"}</td>
+      <td>${show ? (sat.magAz ?? sat.az).toFixed(1) + "°" : "—"}</td>
+      <td>${elVal}</td>
       <td>
         <span class="status-pill status-${sat.status}">
-          ${showAngles ? sat.status.toUpperCase() : "—"}
+          ${show ? sat.status.toUpperCase() : "—"}
         </span>
       </td>
-    </tr>`).join("");
+    </tr>`;
+  }).join("");
 
   tableContainer.innerHTML = `
     <table>
       <thead>
         <tr>
-          ${headerCell("Satellite", "name")}
-          ${headerCell("Center", "centerLon")}
-          ${headerCell("Az", "az")}
-          ${headerCell("El", "el")}
-          ${headerCell("Status", "status")}
+          ${headerCell("Satellite",  "name")}
+          ${headerCell("Lon",        "centerLon")}
+          ${headerCell("True Az",    "az")}
+          ${headerCell("Mag Az",     "magAz")}
+          ${headerCell(elLabel,      "el")}
+          ${headerCell("Status",     "status")}
         </tr>
       </thead>
       <tbody>${rows}</tbody>
@@ -95,18 +104,11 @@ export function updateTable(satList) {
   renderTable();
 }
 
-/**
- * Clears row highlight in the DOM only.
- * Does NOT call back into events.js to avoid circular calls.
- */
 export function clearTableSelection() {
   if (!tableContainer) return;
   tableContainer.querySelectorAll("tbody tr").forEach(r => r.classList.remove("selected"));
 }
 
-/**
- * Highlights a specific row by satellite id.
- */
 export function selectTableRow(id) {
   if (!tableContainer) return;
   tableContainer.querySelectorAll("tbody tr").forEach(r => {

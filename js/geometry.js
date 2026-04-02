@@ -94,9 +94,8 @@ export function footprintBoundaryPoints(sat, steps = 720) {
  * @param {number} altKm    Satellite altitude km       (default GEO)
  * @returns {{ az: number, el: number }}  degrees
  */
-export function computeAzEl(obsLat, obsLon, satLon, altKm = DEFAULT_SAT_ALT_KM) {
+export function computeAzEl(obsLat, obsLon, satLon, altKm = DEFAULT_SAT_ALT_KM, declDeg = 0) {
   // Standard GEO pointing formula (ITU-R BO.1213 / Pratt & Bostian)
-  // Satellite is on the equator at (lat=0, lon=satLon), altitude altKm.
   const φ   = toRad(obsLat);
   const Δλ  = toRad(satLon - obsLon);
   const Re  = EARTH_RADIUS_KM;
@@ -107,21 +106,20 @@ export function computeAzEl(obsLat, obsLon, satLon, altKm = DEFAULT_SAT_ALT_KM) 
   const cosΔλ = Math.cos(Δλ);
   const sinΔλ = Math.sin(Δλ);
 
-  // a = cos(angle between observer radius and sub-sat radius)
   const a     = cosφ * cosΔλ;
   const slant = Math.sqrt(Re * Re + Rs * Rs - 2 * Re * Rs * a);
 
-  // Elevation: angle above local horizontal
   const elRad = Math.asin((Rs * a - Re) / slant);
-
-  // Azimuth: bearing from North, clockwise, toward the satellite's
-  // sub-point on the equator — same as great-circle bearing to (0°, satLon)
   const azRad = Math.atan2(sinΔλ, -Math.tan(φ) * cosΔλ);
   const azDeg = (toDeg(azRad) + 360) % 360;
 
+  // Magnetic azimuth: subtract declination (+ East means compass reads high)
+  const magAz = (azDeg - declDeg + 360) % 360;
+
   return {
-    az: Math.round(azDeg  * 10) / 10,
-    el: Math.round(toDeg(elRad) * 10) / 10
+    az:    Math.round(azDeg  * 10) / 10,
+    magAz: Math.round(magAz  * 10) / 10,
+    el:    Math.round(toDeg(elRad) * 10) / 10,
   };
 }
 

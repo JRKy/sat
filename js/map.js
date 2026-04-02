@@ -53,6 +53,11 @@ map.createPane(LINE_PANE);
 map.getPane(LINE_PANE).style.zIndex = 380;
 map.getPane(LINE_PANE).style.pointerEvents = "none";
 
+export const BEARING_PANE = "bearing-pane";
+map.createPane(BEARING_PANE);
+map.getPane(BEARING_PANE).style.zIndex = 420;
+map.getPane(BEARING_PANE).style.pointerEvents = "none";
+
 export const SAT_PANE = "satellite-pane";
 map.createPane(SAT_PANE);
 map.getPane(SAT_PANE).style.zIndex = 450;
