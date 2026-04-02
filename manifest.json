@@ -1,0 +1,19 @@
+{
+  "name": "Satellite Antenna Tracker",
+  "short_name": "SatTracker",
+  "description": "GEO satellite look-angle and antenna pointing tool",
+  "start_url": "/sat/",
+  "scope": "/sat/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#1a73e8",
+  "background_color": "#ffffff",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
