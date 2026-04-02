@@ -33,47 +33,51 @@ function updateLabelVisibility() {
 
 map.on("zoomend", updateLabelVisibility);
 
-// ── Wrapped satellite markers ──────────────────────────
-// Single canonical position only — Leaflet's worldCopyJump
-// and tile rendering handle visual continuity when panning.
-const WORLD_OFFSETS = [0];
+// ── Nearest-copy longitude ─────────────────────────────
+// Place the marker at whichever world copy of centerLon is
+// closest to the observer (or map center if no observer).
+// Mirrors the same logic used in lines.js.
+function nearestLon(referenceLon, satLon) {
+  let delta = satLon - referenceLon;
+  while (delta >  180) delta -= 360;
+  while (delta < -180) delta += 360;
+  return referenceLon + delta;
+}
 
 /**
- * Creates wrapped markers for all world copies.
- * Returns an array of { marker, label } objects.
+ * Creates a marker + label for the satellite at the world copy
+ * nearest to the observer. Returns an array of { marker, label }.
+ *
+ * @param {object}      sat  Satellite object (centerLon, name, …)
+ * @param {object|null} obs  Observer { lat, lon } or null
  */
-export function createWrappedSatelliteMarkers(sat) {
-  const wrapped = [];
+export function createWrappedSatelliteMarkers(sat, obs) {
+  // Use observer lon if available, otherwise map center lon
+  const refLon = obs ? obs.lon : map.getCenter().lng;
+  const lon    = nearestLon(refLon, sat.centerLon);
 
-  for (const offset of WORLD_OFFSETS) {
-    const lon = sat.centerLon + offset;
+  const marker = L.marker([0, lon], {
+    icon: satelliteIcon,
+    pane: SAT_PANE,
+    title: sat.name
+  });
 
-    const marker = L.marker([0, lon], {
-      icon: satelliteIcon,
-      pane: SAT_PANE,
-      title: sat.name
-    });
+  const labelHtml = `<div class="sat-label"><span class="name">${sat.name}</span></div>`;
+  const LABEL_W = 90;
+  const LABEL_H = 22;
 
-    const labelHtml = `<div class="sat-label"><span class="name">${sat.name}</span></div>`;
+  const label = L.marker([0, lon], {
+    icon: L.divIcon({
+      className:  "",
+      html:       labelHtml,
+      iconSize:   [LABEL_W, LABEL_H],
+      iconAnchor: [LABEL_W / 2, -16]
+    }),
+    interactive: false,
+    pane: LABEL_PANE
+  });
 
-    const LABEL_W = 90;
-    const LABEL_H = 22;
-
-    const label = L.marker([0, lon], {
-      icon: L.divIcon({
-        className: "",
-        html: labelHtml,
-        iconSize:   [LABEL_W, LABEL_H],
-        iconAnchor: [LABEL_W / 2, -16]  // centered horizontally, below the sat icon
-      }),
-      interactive: false,
-      pane: LABEL_PANE
-    });
-
-    wrapped.push({ marker, label });
-  }
-
-  return wrapped;
+  return [{ marker, label }];
 }
 
 // ── Bulk add / remove ──────────────────────────────────

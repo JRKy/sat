@@ -246,7 +246,7 @@ function renderSatellites() {
   const visible = filteredSatellites();
 
   for (const sat of visible) {
-    const wrapped = createWrappedSatelliteMarkers(sat);
+    const wrapped = createWrappedSatelliteMarkers(sat, getObserver());
     activeWrapped[sat.id] = wrapped;
     addSatelliteToMap(wrapped);
 
