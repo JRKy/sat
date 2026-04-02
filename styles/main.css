@@ -723,3 +723,82 @@ body.panel-open .leaflet-bottom.leaflet-right {
    Utility
 ========================================= */
 .muted { color: var(--text-muted); }
+
+/* =========================================
+   Magnetic azimuth value
+========================================= */
+.mag-az { color: var(--low); }
+
+/* =========================================
+   Compass legend (True / Mag labels)
+========================================= */
+.compass-legend {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* =========================================
+   Declination row
+========================================= */
+.decl-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.decl-icon {
+  font-size: 14px !important;
+  color: var(--text-muted);
+}
+
+.decl-text strong { color: var(--text); }
+
+/* Three angle items — reduce min-width so they fit */
+.angle-values { gap: 8px; }
+.angle-val    { font-size: 18px; }
+
+/* =========================================
+   Export button
+========================================= */
+.export-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text);
+  font-size: 13px;
+  font-family: var(--font);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.export-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.export-btn .material-symbols-rounded { font-size: 18px; }
