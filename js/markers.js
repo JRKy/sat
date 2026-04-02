@@ -52,21 +52,17 @@ export function createWrappedSatelliteMarkers(sat) {
       title: sat.name
     });
 
-    const labelHtml = `
-      <div class="sat-label">
-        <span class="name">${sat.name}</span>
-        <span class="center">${sat.centerLon.toFixed(1)}°</span>
-      </div>`;
+    const labelHtml = `<div class="sat-label"><span class="name">${sat.name}</span></div>`;
 
-    const LABEL_W = 100; // approximate max label width
-    const LABEL_H = 34;  // two lines of text + padding
+    const LABEL_W = 90;
+    const LABEL_H = 22;
 
     const label = L.marker([0, lon], {
       icon: L.divIcon({
         className: "",
         html: labelHtml,
         iconSize:   [LABEL_W, LABEL_H],
-        iconAnchor: [LABEL_W / 2, -18]  // centered horizontally, 18px below the sat icon
+        iconAnchor: [LABEL_W / 2, -16]  // centered horizontally, below the sat icon
       }),
       interactive: false,
       pane: LABEL_PANE

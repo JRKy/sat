@@ -7,7 +7,7 @@
 // ── Constants ──────────────────────────────────────────
 export const EARTH_RADIUS_KM    = 6371;
 export const DEFAULT_SAT_ALT_KM = 35786;
-export const LABEL_ZOOM_THRESHOLD = 4;
+export const LABEL_ZOOM_THRESHOLD = 2;
 
 // ── Satellite list ─────────────────────────────────────
 let _satellites = [];

@@ -47,15 +47,22 @@ document.getElementById("sat-toggle").addEventListener("click", () => {
 
 // 5. Geolocation button
 document.getElementById("geo").addEventListener("click", () => {
+  geolocate();
+});
+
+// 6. Auto-geolocate on load — silently ignored if denied or unavailable
+function geolocate() {
   if (!navigator.geolocation) return;
   navigator.geolocation.getCurrentPosition(
     pos => {
       const { latitude, longitude } = pos.coords;
       setUserLocation(latitude, longitude);
-      map.setView([latitude, longitude], 6);
+      map.setView([latitude, longitude], 4);
     },
-    err => console.warn("Geolocation denied:", err.message)
+    () => {} // denied or unavailable — no-op, user can click the map instead
   );
-});
+}
+
+geolocate();
 
 console.log("Satellite Antenna Tracker ready.");
