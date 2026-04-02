@@ -1,21 +1,9 @@
 [
-  { "name": "MUOS-1", "lon": -100.0 },
-  { "name": "MUOS-2", "lon": -177.0 },
-  { "name": "MUOS-3", "lon": 75.0 },
-  { "name": "MUOS-4", "lon": -15.0 },
-  { "name": "MUOS-5", "lon": 172.0 },
-
-  { "name": "WGS-1", "lon": -135.0 },
-  { "name": "WGS-2", "lon": 60.0 },
-  { "name": "WGS-3", "lon": 12.0 },
-  { "name": "WGS-4", "lon": -71.0 },
-  { "name": "WGS-5", "lon": 178.0 },
-  { "name": "WGS-6", "lon": 21.0 },
-  { "name": "WGS-7", "lon": -45.0 },
-  { "name": "WGS-8", "lon": 35.0 },
-  { "name": "WGS-9", "lon": -135.0 },
-
-  { "name": "GOES-16", "lon": -75.0 },
-  { "name": "GOES-17", "lon": -137.2 },
-  { "name": "GOES-18", "lon": -137.0 }
+  { "name": "ALT-IO",   "lon":  110.0 },
+  { "name": "ALT-LANT", "lon":  -24.0 },
+  { "name": "ALT-PAC",  "lon": -127.0 },
+  { "name": "MUOS-2",   "lon":  172.0 },
+  { "name": "MUOS-3",   "lon":  -15.5 },
+  { "name": "MUOS-4",   "lon":   75.0 },
+  { "name": "MUOS-5",   "lon": -100.0 }
 ]
