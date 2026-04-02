@@ -379,15 +379,17 @@ html, body {
 }
 
 .angle-label {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.2px;
   margin-bottom: 4px;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .angle-val {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 700;
   font-family: var(--font-mono);
   letter-spacing: -0.5px;
@@ -673,16 +675,27 @@ body.panel-open .leaflet-bottom.leaflet-right {
 
   .detail-angles { padding: 8px 10px; }
 
-  .angle-row { gap: 10px; }
-
-  /* Shrink compass and angle values */
-  .compass { width: 56px; height: 56px; }
-
-  .angle-val {
-    font-size: 18px;
+  /* Stack compass above angle values on mobile */
+  .angle-row {
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
   }
 
-  .angle-label { font-size: 10px; margin-bottom: 2px; }
+  .angle-values {
+    width: 100%;
+    justify-content: space-around;
+    gap: 4px;
+  }
+
+  /* Shrink compass */
+  .compass { width: 52px; height: 52px; }
+
+  .angle-val   { font-size: 16px; }
+  .angle-label { font-size: 9px; margin-bottom: 2px; }
+
+  /* Tighter decl row */
+  .decl-row { margin-top: 6px; padding-top: 6px; font-size: 11px; }
 
   /* Tighter table rows */
   #sat-table td,
@@ -772,9 +785,8 @@ body.panel-open .leaflet-bottom.leaflet-right {
 
 .decl-text strong { color: var(--text); }
 
-/* Three angle items — reduce min-width so they fit */
-.angle-values { gap: 8px; }
-.angle-val    { font-size: 18px; }
+/* Three angle items — tighter gap */
+.angle-values { gap: 6px; }
 
 /* =========================================
    Export button
