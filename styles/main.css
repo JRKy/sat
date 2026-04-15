@@ -379,34 +379,7 @@ html, body {
   .tab-pane       { padding: 10px 12px; gap: 8px; }
   .panel-controls { gap: 6px; }
 
-  .info-card { padding: 8px 10px; gap: 8px; font-size: 13px; }
-  .info-card .material-symbols-rounded { font-size: 18px; }
-  .info-label { font-size: 10px; }
-  .info-value { font-size: 13px; margin-top: 1px; }
-
-  .detail-header { padding: 8px 10px; gap: 8px; }
-  .detail-name   { font-size: 14px; }
-  .detail-lon    { font-size: 11px; }
-  .detail-angles { padding: 8px 10px; }
-
-  .angle-row {
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .angle-values {
-    width: 100%;
-    justify-content: space-around;
-    gap: 4px;
-  }
-
-  .compass      { width: 52px; height: 52px; }
-  .angle-val    { font-size: 16px; }
-  .angle-label  { font-size: 9px; margin-bottom: 2px; }
-
-  .decl-row { margin-top: 6px; padding-top: 6px; font-size: 11px; }
-
+  /* Table stays compact on mobile */
   #sat-table td,
   #sat-table th { padding: 7px 6px; font-size: 12px; }
   #sat-table th  { font-size: 10px; }
