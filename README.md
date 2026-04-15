@@ -10,18 +10,29 @@
 
 On load the app requests your GPS location automatically. You can also click anywhere on the map, use the search bar, or tap the location button. The app immediately computes pointing angles to every satellite and shows:
 
-- **True and magnetic azimuth** for each satellite — magnetic corrected using the WMM-2025 model
+- **True and magnetic azimuth** for each satellite — magnetic corrected using the embedded WMM-2025 model
 - **Elevation** above the horizon, or zenith angle (switchable)
-- **Magnetic declination** for your location, displayed in the satellite detail card
-- **Status** — Good (≥20°), Low (5–20°), Bad (<5°) — using industry-standard thresholds
-- **Look-angle lines** on the map from your location to each satellite, colored by status (solid green/amber, dashed red)
-- **Bearing ray** — a directional arrow on the map showing exactly which way to point your dish when a satellite is selected
+- **Magnetic declination** for your location, shown in the satellite detail card
+- **Status** — Good (≥20°), Low (5–20°), Bad (<5°) — industry-standard thresholds
+- **Look-angle lines** on the map from your location to each satellite, colored by status (solid green/amber, dashed red for bad)
+- **Bearing ray** — a dashed directional arrow on the map showing which way to point your dish when a satellite is selected
 - **Satellite name labels** visible at all zoom levels
 - **Coverage footprints** (optional toggle, off by default) showing each satellite's visibility zone
-- **Compass rose** in the detail card showing both true and magnetic needles side by side
-- **CSV export** of all visible satellite angles including true az, magnetic az, elevation, zenith, and status
+- **Compass rose** in the detail card with two needles — true north and magnetic north side by side
+- **CSV export** of all visible satellite angles including true az, magnetic az, elevation, zenith angle, and status
 
-The satellite panel slides in from the right (desktop) or up from the bottom (mobile) when you click a satellite marker or table row. It can be pinned open alongside the map. Panel pin state and elevation unit preference persist across sessions. Footprints are session-only. Dark mode follows system preference. The app installs as a PWA and works offline — map tiles require a connection but all pointing math runs locally.
+---
+
+## Interface
+
+The app uses a **floating window** that sits over the map. On desktop it can be dragged anywhere on screen and its position is remembered across sessions. On mobile it anchors to the bottom of the screen as a fixed card. Click the **—** button in the title bar to minimize it to a slim bar — the selected satellite name and status remain visible even when minimized. Click the title bar or expand button to restore it.
+
+The window has two tabs:
+
+- **Pointing** — your observer coordinates and the selected satellite's detail card (compass rose, true az, magnetic az, elevation/zenith, declination)
+- **Satellites** — the full satellite table with sortable columns, plus controls for min elevation filter, footprint toggle, zenith angle toggle, and CSV export
+
+Clicking any satellite marker on the map or any row in the table automatically switches to the Pointing tab and expands the window if minimized.
 
 ---
 
@@ -47,7 +58,7 @@ The satellite panel slides in from the right (desktop) or up from the bottom (mo
 | MUOS-4 | 75.0° E |
 | MUOS-5 | 100.0° W |
 
-To update the satellite list, edit [`satellites.json`](satellites.json). Each entry needs a `name` and a `lon` (decimal degrees, negative = West).
+To update the satellite list, edit [`satellites.json`](satellites.json). Each entry needs a `name` and a `lon` (decimal degrees, negative = West):
 
 ```json
 [
@@ -65,7 +76,7 @@ No build step. No framework. No API keys.
 |---------|-----------------|
 | Map | [Leaflet 1.9](https://leafletjs.com/) |
 | Geocoding | [Nominatim](https://nominatim.org/) (OpenStreetMap) |
-| Tile layers | OSM · CartoDB · OpenTopoMap · Esri |
+| Tile layers | OSM · CartoDB Dark · OpenTopoMap · Esri Satellite |
 | Icons | [Material Symbols Rounded](https://fonts.google.com/icons) |
 | Fonts | Google Sans · Roboto Mono |
 | Magnetic model | WMM-2025 (NOAA), embedded — no API needed |
@@ -79,7 +90,7 @@ All satellite math (az/el, magnetic declination, footprint geometry, look-angle 
 ```
 sat/
 ├── index.html
-├── satellites.json        # satellite list — edit this to change satellites
+├── satellites.json        # satellite list — edit to add/remove satellites
 ├── manifest.json          # PWA manifest
 ├── sw.js                  # service worker — offline app shell caching
 ├── favicon.svg
@@ -95,10 +106,24 @@ sat/
     ├── footprints.js      # coverage footprint polygons
     ├── geometry.js        # pure math: az/el/magAz, footprint boundary
     ├── declination.js     # WMM-2025 magnetic declination (self-contained)
-    ├── events.js          # all user interactions, panel, selection, export
+    ├── events.js          # floating window, tabs, selection, controls, export
     ├── table.js           # satellite table with sorting, mag az, unit toggle
     └── autocomplete.js    # Nominatim location search with debounce
 ```
+
+---
+
+## Persistence
+
+The following preferences are saved to `localStorage` and restored on next load:
+
+| Key | What it stores |
+|-----|----------------|
+| `sat_elev_unit` | Elevation vs zenith angle toggle |
+| `sat_win_pos` | Floating window position (desktop) |
+| `sat_win_min` | Whether the window is minimized |
+
+Footprints default to off every session and are not persisted.
 
 ---
 
@@ -116,7 +141,7 @@ const CACHE = "sat-v2"; // increment to invalidate old cache
 
 ## Hosting on GitHub Pages
 
-The repo is configured to serve from the `main` branch root. To deploy:
+The repo serves from the `main` branch root. To deploy:
 
 ```bash
 git add .
@@ -124,7 +149,7 @@ git commit -m "update"
 git push origin main
 ```
 
-GitHub Pages will publish automatically to [https://jrky.github.io/sat/](https://jrky.github.io/sat/).
+GitHub Pages publishes automatically to [https://jrky.github.io/sat/](https://jrky.github.io/sat/).
 
 ---
 
