@@ -1,9 +1,9 @@
 [
-  { "name": "ALT-IO",   "lon":  110.0 },
-  { "name": "ALT-LANT", "lon":  -24.0 },
-  { "name": "ALT-PAC",  "lon": -127.0 },
-  { "name": "MUOS-2",   "lon":  172.0 },
-  { "name": "MUOS-3",   "lon":  -15.5 },
-  { "name": "MUOS-4",   "lon":   75.0 },
-  { "name": "MUOS-5",   "lon": -100.0 }
+  { "name": "MUOS-5", "lon": -100.0 }
+  { "name": "LANT",   "lon":  -24.0 },
+  { "name": "MUOS-3", "lon":  -15.5 },
+  { "name": "MUOS-4", "lon":   75.0 },
+  { "name": "IO",     "lon":  110.0 },
+  { "name": "PAC",    "lon":  170.0 },
+  { "name": "MUOS-2", "lon":  172.0 },
 ]
