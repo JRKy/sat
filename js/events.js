@@ -13,7 +13,8 @@ import { updateTable, clearTableSelection, selectTableRow } from "./table.js";
 import { updateFootprints } from "./footprints.js";
 import { updateLines } from "./lines.js";
 import { updateBearingRay, clearBearingRay } from "./bearing.js";
-import { computeAzEl, elToStatus } from "./geometry.js";
+import { computeAzEl } from "./geometry.js";
+import { elevationToStatus } from "./status.js";
 import { getMagDeclination } from "./declination.js";
 import {
   getSatellites, setSatellites,
@@ -335,7 +336,7 @@ function recomputeAllAzEl() {
     } else {
       const r = computeAzEl(obs.lat, obs.lon, sat.centerLon, sat.alt_km ?? 35786, decl);
       sat.az = r.az; sat.magAz = r.magAz; sat.el = r.el; sat.decl = decl;
-      sat.status = elToStatus(r.el);
+      sat.status = elevationToStatus(r.el);
     }
   }
 }
