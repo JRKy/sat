@@ -9,6 +9,7 @@
 
 import { map, BEARING_PANE } from "./map.js";
 import { toRad, toDeg } from "./geometry.js";
+import { statusColor } from "./status.js";
 
 const RAY_KM  = 1500; // visible at world zoom (~13° arc)
 const R_EARTH = 6371;
@@ -21,7 +22,7 @@ export function updateBearingRay(obs, az, status) {
   clearBearingRay();
   if (!obs) return;
 
-  const color = _statusColor(status);
+  const color = statusColor(status);
   const tip   = _dest(obs.lat, obs.lon, az, RAY_KM);
 
   // Dashed shaft
@@ -81,15 +82,4 @@ function _dest(lat, lon, bearing, distKm) {
     Math.cos(δ) - Math.sin(φ1) * sinφ
   );
   return { lat: toDeg(φ2), lon: toDeg(λ2) };
-}
-
-const STATUS_COLORS = {
-  good: { light: "#1e8e3e", dark: "#30d158" },
-  low:  { light: "#f29900", dark: "#ffd60a" },
-  bad:  { light: "#d93025", dark: "#ff453a" },
-};
-
-function _statusColor(status) {
-  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-  return (STATUS_COLORS[status] ?? STATUS_COLORS.bad)[dark ? "dark" : "light"];
 }
