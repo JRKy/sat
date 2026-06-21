@@ -3,7 +3,6 @@
 // Satellite list table: rendering, sorting, row selection.
 // ======================================================
 
-import { highlightSatellite } from "./events.js";
 import { hasObserver, getElevUnit } from "./state.js";
 
 // ── Internal state ─────────────────────────────────────
@@ -11,6 +10,7 @@ let tableContainer = null;
 let satellites     = [];
 let sortColumn     = "name";
 let sortDirection  = "asc";
+let onSelect       = null;
 
 // ── Sorting ────────────────────────────────────────────
 function compare(a, b) {
@@ -89,14 +89,15 @@ function attachRowEvents() {
     row.addEventListener("click", () => {
       tableContainer.querySelectorAll("tbody tr").forEach(r => r.classList.remove("selected"));
       row.classList.add("selected");
-      highlightSatellite(row.dataset.id);
+      if (onSelect) onSelect(row.dataset.id);
     });
   });
 }
 
 // ── Public API ─────────────────────────────────────────
-export function initTable(containerId) {
+export function initTable(containerId, options = {}) {
   tableContainer = document.getElementById(containerId);
+  onSelect = options.onSelect ?? null;
 }
 
 export function updateTable(satList) {
