@@ -121,7 +121,7 @@ html, body {
 .floating-btn:hover  { background: var(--bg-hover); box-shadow: var(--shadow-lg); }
 .floating-btn:active { transform: scale(0.94); }
 
-#geo        { bottom: calc(16px + var(--safe-bottom)); }
+#geo        { bottom: calc(52px + var(--safe-bottom)); }
 
 /* =========================================
    Search Bar
@@ -276,6 +276,16 @@ html, body {
 
 .icon-btn:hover { background: var(--bg-hover); color: var(--text); }
 
+.icon-btn.compact {
+  width: 30px;
+  height: 30px;
+  padding: 4px;
+  flex: 0 0 30px;
+  justify-content: center;
+}
+
+.icon-btn.compact .material-symbols-rounded { font-size: 17px; }
+
 #win-tabs {
   display: flex;
   flex-shrink: 0;
@@ -349,6 +359,114 @@ html, body {
   font-size: 14px;
   min-width: 32px;
   text-align: right;
+}
+
+/* =========================================
+   Satellite Catalog
+========================================= */
+#catalog-manager {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.catalog-header,
+.catalog-add,
+.catalog-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.catalog-header {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.catalog-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.catalog-title .material-symbols-rounded { font-size: 17px; color: var(--accent); }
+
+.catalog-count {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.catalog-add {
+  grid-template-columns: minmax(0, 1.4fr) 82px 30px;
+}
+
+.catalog-add input {
+  min-width: 0;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text);
+  font: 12px var(--font);
+  padding: 0 8px;
+  outline: none;
+}
+
+.catalog-add input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-subtle);
+}
+
+.catalog-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 138px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+}
+
+.catalog-item {
+  grid-template-columns: minmax(0, 1fr) 58px 30px;
+  min-height: 30px;
+}
+
+.catalog-toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.catalog-toggle input { accent-color: var(--accent); }
+
+.catalog-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.catalog-lon {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-align: right;
+}
+
+.catalog-fixed {
+  width: 30px;
+  height: 30px;
 }
 
 /* =========================================

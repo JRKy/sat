@@ -338,8 +338,21 @@ setShowFootprints(false);
 
 export function initEvents(satList) {
   setSatellites(satList);
+  recomputeAllAzEl();
   renderObserverInfo();
   renderSatellites();
+}
+
+export function replaceSatellites(satList) {
+  const selectedId = getSelectedId();
+  setSatellites(satList);
+  recomputeAllAzEl();
+  if (selectedId && !satList.some(s => s.id === selectedId)) {
+    setSelectedId(null);
+    renderSelectedInfo(null);
+    clearTableSelection();
+  }
+  refreshSatellites();
 }
 
 export function refreshSatellites() {
