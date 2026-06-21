@@ -5,6 +5,7 @@
 
 import { map, FOOTPRINT_PANE } from "./map.js";
 import { footprintBoundaryPoints } from "./geometry.js";
+import { worldCopyOffset } from "./geo-wrap.js";
 
 const FOOTPRINT_COLORS = [
   "#1a73e8", "#34a853", "#fbbc05", "#ea4335", "#8e24aa", "#00acc1",
@@ -38,21 +39,6 @@ function _shiftRing(ring, offset) {
   return ring.map(([lat, lon]) => [lat, lon + offset]);
 }
 
-/**
- * Compute the longitude shift needed to place the footprint on the
- * world copy nearest to the reference longitude (observer or map center).
- * Mirrors the nearestLon logic in markers.js and lines.js.
- */
-function _nearestOffset(refLon, satCenterLon) {
-  // Find where the sat marker was placed (nearest copy to refLon)
-  let delta = satCenterLon - refLon;
-  while (delta >  180) delta -= 360;
-  while (delta < -180) delta += 360;
-  const nearestSatLon = refLon + delta;
-  // The offset is how far that copy is from the canonical centerLon
-  return nearestSatLon - satCenterLon;
-}
-
 // ── Public API ─────────────────────────────────────────
 export function clearFootprints() {
   for (const [, group] of footprintLayers) map.removeLayer(group);
@@ -77,7 +63,7 @@ export function updateFootprints(satList, enabled, obs) {
     const boundary = footprintBoundaryPoints(sat, 720);
     if (!boundary || boundary.length < 3) return;
 
-    const offset   = _nearestOffset(refLon, sat.centerLon);
+    const offset   = worldCopyOffset(refLon, sat.centerLon);
     const ring     = _shiftRing(_unwrapRing(boundary), offset);
     const layers   = [];
 

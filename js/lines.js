@@ -13,33 +13,8 @@
 // ======================================================
 
 import { map, LINE_PANE } from "./map.js";
-
-const STATUS_COLORS = {
-  good: { light: "#1e8e3e", dark: "#30d158" },
-  low:  { light: "#f29900", dark: "#ffd60a" },
-  bad:  { light: "#d93025", dark: "#ff453a" },
-};
-
-function statusColor(status) {
-  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-  return (STATUS_COLORS[status] ?? STATUS_COLORS.bad)[dark ? "dark" : "light"];
-}
-
-/**
- * Adjust satellite longitude to the nearest world copy relative to the
- * observer so the line always takes the short path across the map.
- *
- * Example — Hawaii (−158°) → MUOS-2 (172°):
- *   raw Δλ = 172 − (−158) = 330° → would draw eastward across the whole map
- *   adjusted: delta normalised to −30° → satLon = −158 + (−30) = −188° ✓
- *   Leaflet renders −188° as the western world-copy of 172°, short arc drawn.
- */
-function nearestSatLon(obsLon, satLon) {
-  let delta = satLon - obsLon;
-  while (delta >  180) delta -= 360;
-  while (delta < -180) delta += 360;
-  return obsLon + delta;
-}
+import { nearestWrappedLon } from "./geo-wrap.js";
+import { statusColor } from "./status.js";
 
 let lineLayers = {};
 
@@ -52,7 +27,7 @@ export function updateLines(satList, obs) {
   for (const sat of satList) {
     const color    = statusColor(sat.status);
     const isDashed = sat.status === "bad";
-    const satLon   = nearestSatLon(obs.lon, sat.centerLon);
+    const satLon   = nearestWrappedLon(obs.lon, sat.centerLon);
 
     const line = L.polyline(
       [[obs.lat, obs.lon], [0, satLon]],

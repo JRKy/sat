@@ -5,7 +5,7 @@
 // all other app functionality works offline.
 // ======================================================
 
-const CACHE    = "sat-v1";
+const CACHE    = "sat-v5";
 const PRECACHE = [
   "/sat/",
   "/sat/index.html",
@@ -15,6 +15,11 @@ const PRECACHE = [
   "/sat/styles/main.css",
   "/sat/js/app.js",
   "/sat/js/state.js",
+  "/sat/js/status.js",
+  "/sat/js/geo-wrap.js",
+  "/sat/js/catalog.js",
+  "/sat/js/window-ui.js",
+  "/sat/js/export.js",
   "/sat/js/map.js",
   "/sat/js/markers.js",
   "/sat/js/events.js",

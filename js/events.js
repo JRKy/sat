@@ -1,6 +1,6 @@
 // ======================================================
 // events.js
-// Orchestrates all user interactions.
+// Orchestrates user interactions and app rendering.
 // ======================================================
 
 import { map, onLocationChange } from "./map.js";
@@ -13,8 +13,11 @@ import { updateTable, clearTableSelection, selectTableRow } from "./table.js";
 import { updateFootprints } from "./footprints.js";
 import { updateLines } from "./lines.js";
 import { updateBearingRay, clearBearingRay } from "./bearing.js";
-import { computeAzEl, elToStatus } from "./geometry.js";
+import { exportSatelliteAngles } from "./export.js";
+import { computeAzEl } from "./geometry.js";
+import { elevationToStatus } from "./status.js";
 import { getMagDeclination } from "./declination.js";
+import { initFloatingWindow, expandWindow, isWindowMinimized } from "./window-ui.js";
 import {
   getSatellites, setSatellites,
   getObserver, setObserver, hasObserver,
@@ -23,15 +26,9 @@ import {
   getElevationCutoff, setElevationCutoff,
   getElevUnit, setElevUnit,
   loadPersistedElevUnit, saveElevUnit,
-  saveFootprint,
-  loadPersistedWinPos, saveWinPos,
-  loadPersistedWinMin, saveWinMin
+  saveFootprint
 } from "./state.js";
 
-// ── DOM refs ───────────────────────────────────────────
-const win             = document.getElementById("sat-window");
-const winHeader       = document.getElementById("win-header");
-const winMinimizeBtn  = document.getElementById("win-minimize");
 const winTitleText    = document.getElementById("win-title-text");
 const winTitlePill    = document.getElementById("win-title-pill");
 const cutoffSlider    = document.getElementById("cutoff");
@@ -42,10 +39,8 @@ const exportBtn       = document.getElementById("export-btn");
 const observerInfo    = document.getElementById("observer-info");
 const selectedInfo    = document.getElementById("selected-info");
 
-// ── Active marker store ────────────────────────────────
 let activeWrapped = {};
 
-// ── Tab switching ──────────────────────────────────────
 const tabBtns  = document.querySelectorAll(".tab-btn");
 const tabPanes = document.querySelectorAll(".tab-pane");
 
@@ -55,127 +50,8 @@ export function selectTab(name) {
 }
 
 tabBtns.forEach(btn => btn.addEventListener("click", () => selectTab(btn.dataset.tab)));
+initFloatingWindow();
 
-// ── Floating window: minimize / expand ────────────────
-let _minimized = false;
-
-export function minimizeWindow() {
-  _minimized = true;
-  win.classList.add("minimized");
-  winMinimizeBtn.querySelector(".material-symbols-rounded").textContent = "open_in_full";
-  winMinimizeBtn.title = "Expand";
-  saveWinMin(true);
-}
-
-export function expandWindow() {
-  _minimized = false;
-  win.classList.remove("minimized");
-  winMinimizeBtn.querySelector(".material-symbols-rounded").textContent = "remove";
-  winMinimizeBtn.title = "Minimize";
-  saveWinMin(false);
-}
-
-winMinimizeBtn.addEventListener("click", () => {
-  if (_minimized) expandWindow(); else minimizeWindow();
-});
-
-// Also expand on header click when minimized
-winHeader.addEventListener("click", (e) => {
-  if (_minimized && e.target === winHeader || e.target.id === "win-title" ||
-      e.target.id === "win-title-text" || e.target.id === "win-title-pill") {
-    expandWindow();
-  }
-});
-
-// Restore minimized state
-if (loadPersistedWinMin()) minimizeWindow();
-
-// ── Floating window: drag (desktop only) ──────────────
-const isMobile = () => window.innerWidth <= 600;
-
-let dragging = false;
-let dragStartX = 0, dragStartY = 0;
-let winStartX  = 0, winStartY  = 0;
-
-function clamp(val, min, max) { return Math.max(min, Math.min(max, val)); }
-
-function applyPos(x, y) {
-  const maxX = window.innerWidth  - win.offsetWidth;
-  const maxY = window.innerHeight - win.offsetHeight;
-  const cx = clamp(x, 0, Math.max(0, maxX));
-  const cy = clamp(y, 0, Math.max(0, maxY));
-  win.style.left = cx + "px";
-  win.style.top  = cy + "px";
-  win.style.right = "auto";
-}
-
-winHeader.addEventListener("mousedown", (e) => {
-  if (isMobile()) return;
-  if (e.target.closest(".icon-btn")) return; // don't drag when clicking buttons
-  dragging   = true;
-  dragStartX = e.clientX;
-  dragStartY = e.clientY;
-  const rect = win.getBoundingClientRect();
-  winStartX  = rect.left;
-  winStartY  = rect.top;
-  win.classList.add("dragging");
-  e.preventDefault();
-});
-
-document.addEventListener("mousemove", (e) => {
-  if (!dragging) return;
-  applyPos(winStartX + e.clientX - dragStartX, winStartY + e.clientY - dragStartY);
-});
-
-document.addEventListener("mouseup", () => {
-  if (!dragging) return;
-  dragging = false;
-  win.classList.remove("dragging");
-  const rect = win.getBoundingClientRect();
-  saveWinPos(rect.left, rect.top);
-});
-
-// Touch drag
-winHeader.addEventListener("touchstart", (e) => {
-  if (isMobile()) return;
-  if (e.target.closest(".icon-btn")) return;
-  const t = e.touches[0];
-  dragging   = true;
-  dragStartX = t.clientX;
-  dragStartY = t.clientY;
-  const rect = win.getBoundingClientRect();
-  winStartX  = rect.left;
-  winStartY  = rect.top;
-  e.preventDefault();
-}, { passive: false });
-
-document.addEventListener("touchmove", (e) => {
-  if (!dragging) return;
-  const t = e.touches[0];
-  applyPos(winStartX + t.clientX - dragStartX, winStartY + t.clientY - dragStartY);
-}, { passive: true });
-
-document.addEventListener("touchend", () => {
-  if (!dragging) return;
-  dragging = false;
-  const rect = win.getBoundingClientRect();
-  saveWinPos(rect.left, rect.top);
-});
-
-// Restore or set default position
-const savedPos = loadPersistedWinPos();
-if (savedPos && !isMobile()) {
-  applyPos(savedPos.x, savedPos.y);
-}
-
-// Re-clamp on resize
-window.addEventListener("resize", () => {
-  if (isMobile()) return;
-  const rect = win.getBoundingClientRect();
-  applyPos(rect.left, rect.top);
-});
-
-// ── Observer info ──────────────────────────────────────
 function renderObserverInfo() {
   const obs = getObserver();
   if (!obs) {
@@ -198,7 +74,6 @@ function renderObserverInfo() {
     </div>`;
 }
 
-// ── Window title bar summary ───────────────────────────
 function updateWindowTitle(sat) {
   if (!sat || !hasObserver()) {
     winTitleText.textContent = "Satellite Tracker";
@@ -206,12 +81,11 @@ function updateWindowTitle(sat) {
     winTitlePill.className   = "";
     return;
   }
-  winTitleText.textContent  = sat.name;
-  winTitlePill.textContent  = sat.status.toUpperCase();
-  winTitlePill.className    = `status-pill status-${sat.status}`;
+  winTitleText.textContent = sat.name;
+  winTitlePill.textContent = sat.status.toUpperCase();
+  winTitlePill.className   = `status-pill status-${sat.status}`;
 }
 
-// ── Selected satellite detail ──────────────────────────
 function renderSelectedInfo(sat) {
   updateWindowTitle(sat);
 
@@ -323,7 +197,6 @@ function buildCompassSvg(az, magAz) {
     </div>`;
 }
 
-// ── Az/El computation ──────────────────────────────────
 function recomputeAllAzEl() {
   const obs  = getObserver();
   const sats = getSatellites();
@@ -335,12 +208,11 @@ function recomputeAllAzEl() {
     } else {
       const r = computeAzEl(obs.lat, obs.lon, sat.centerLon, sat.alt_km ?? 35786, decl);
       sat.az = r.az; sat.magAz = r.magAz; sat.el = r.el; sat.decl = decl;
-      sat.status = elToStatus(r.el);
+      sat.status = elevationToStatus(r.el);
     }
   }
 }
 
-// ── Filtering ──────────────────────────────────────────
 function filteredSatellites() {
   const cutoff = getElevationCutoff();
   const obs    = getObserver();
@@ -348,7 +220,6 @@ function filteredSatellites() {
   return getSatellites().filter(s => s.el >= cutoff);
 }
 
-// ── Rendering ──────────────────────────────────────────
 function clearAllMarkers() {
   for (const id in activeWrapped) removeSatelliteFromMap(activeWrapped[id]);
   activeWrapped = {};
@@ -376,10 +247,9 @@ function renderSatellites() {
   updateLines(visible, getObserver());
 }
 
-// ── Selection ──────────────────────────────────────────
 function selectSatellite(id) {
   setSelectedId(id);
-  if (_minimized) expandWindow();
+  if (isWindowMinimized()) expandWindow();
   selectTab("pointing");
   _applyHighlight(id);
   selectTableRow(id);
@@ -388,7 +258,9 @@ function selectSatellite(id) {
   renderSelectedInfo(sat ?? null);
 }
 
-export function highlightSatellite(id) { selectSatellite(id); }
+export function highlightSatellite(id) {
+  selectSatellite(id);
+}
 
 export function clearSatelliteHighlight() {
   setSelectedId(null);
@@ -406,13 +278,11 @@ function _applyHighlight(id) {
   }
 }
 
-// ── Map click → deselect ──────────────────────────────
 map.on("click", () => {
   clearSatelliteHighlight();
   clearTableSelection();
 });
 
-// ── Location change ────────────────────────────────────
 onLocationChange((lat, lon) => {
   setObserver({ lat, lon, heightKm: 0 });
   recomputeAllAzEl();
@@ -426,7 +296,6 @@ onLocationChange((lat, lon) => {
   }
 });
 
-// ── Controls ───────────────────────────────────────────
 footprintToggle.addEventListener("change", () => {
   const v = footprintToggle.checked;
   setShowFootprints(v);
@@ -454,49 +323,36 @@ elevUnitToggle.addEventListener("change", () => {
 });
 
 exportBtn.addEventListener("click", () => {
-  const obs  = getObserver();
-  const sats = filteredSatellites();
-  if (!obs || !sats.length) return;
-
-  const latDir = obs.lat >= 0 ? "N" : "S";
-  const lonDir = obs.lon >= 0 ? "E" : "W";
-  const header = ["Satellite","Lon (°)","True Az (°)","Mag Az (°)","Elevation (°)","Zenith (°)","Status"].join(",");
-  const rows   = sats.map(s =>
-    [s.name, s.centerLon.toFixed(1), s.az.toFixed(1),
-     (s.magAz ?? s.az).toFixed(1), s.el.toFixed(1),
-     (90 - s.el).toFixed(1), s.status.toUpperCase()].join(",")
-  );
-  const meta     = `# Observer: ${Math.abs(obs.lat).toFixed(4)}°${latDir} ${Math.abs(obs.lon).toFixed(4)}°${lonDir}`;
-  const decl     = sats[0]?.decl;
-  const declLine = decl !== undefined
-    ? `# Mag declination: ${decl >= 0 ? decl.toFixed(1) + "°E" : Math.abs(decl).toFixed(1) + "°W"}`
-    : "";
-  const csv = [meta, declLine, header, ...rows].filter(Boolean).join("\n");
-
-  const blob = new Blob([csv], { type: "text/csv" });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement("a");
-  a.href = url; a.download = "satellite-angles.csv"; a.click();
-  URL.revokeObjectURL(url);
+  exportSatelliteAngles(getObserver(), filteredSatellites());
 });
 
-// Restore elevation unit
 const persistedUnit = loadPersistedElevUnit();
 if (persistedUnit === "zenith") {
   setElevUnit("zenith");
   if (elevUnitToggle) elevUnitToggle.checked = true;
 }
 
-// Footprints default OFF
 saveFootprint(false);
 footprintToggle.checked = false;
 setShowFootprints(false);
 
-// ── Public API ─────────────────────────────────────────
 export function initEvents(satList) {
   setSatellites(satList);
+  recomputeAllAzEl();
   renderObserverInfo();
   renderSatellites();
+}
+
+export function replaceSatellites(satList) {
+  const selectedId = getSelectedId();
+  setSatellites(satList);
+  recomputeAllAzEl();
+  if (selectedId && !satList.some(s => s.id === selectedId)) {
+    setSelectedId(null);
+    renderSelectedInfo(null);
+    clearTableSelection();
+  }
+  refreshSatellites();
 }
 
 export function refreshSatellites() {

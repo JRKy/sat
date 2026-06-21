@@ -5,27 +5,19 @@
 
 import { map, setUserLocation } from "./map.js";
 import { initTable } from "./table.js";
-import { initEvents } from "./events.js";
+import { initEvents, highlightSatellite, replaceSatellites } from "./events.js?v=5";
 import { initAutocomplete } from "./autocomplete.js";
+import { initSatelliteCatalog } from "./catalog.js?v=5";
 
 // 1. Initialize table container
-initTable("sat-table");
+initTable("sat-table", { onSelect: highlightSatellite });
 
 // 2. Load satellites and bootstrap
 fetch("satellites.json")
   .then(res => res.json())
   .then(satList => {
-    const normalized = satList.map((s, i) => ({
-      id:        String(i),
-      name:      s.name,
-      centerLon: Number(s.lon),
-      lat:       0,
-      alt_km:    35786,
-      az:        0,
-      el:        0,
-      status:    "bad"
-    }));
-    initEvents(normalized);
+    const enabled = initSatelliteCatalog("catalog-manager", satList, replaceSatellites);
+    initEvents(enabled);
   })
   .catch(err => console.error("Failed to load satellites.json:", err));
 
