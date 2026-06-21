@@ -5,11 +5,11 @@
 
 import { map, setUserLocation } from "./map.js";
 import { initTable } from "./table.js";
-import { initEvents } from "./events.js";
+import { initEvents, highlightSatellite } from "./events.js";
 import { initAutocomplete } from "./autocomplete.js";
 
 // 1. Initialize table container
-initTable("sat-table");
+initTable("sat-table", { onSelect: highlightSatellite });
 
 // 2. Load satellites and bootstrap
 fetch("satellites.json")
