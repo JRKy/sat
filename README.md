@@ -1,64 +1,76 @@
-# sat
+# Satellite Antenna Tracker
 
-**Satellite Antenna Tracker** — a lightweight, static web app for computing GEO satellite look angles (azimuth, elevation, and magnetic bearing) from any ground location.
+A lightweight static web app for computing GEO satellite look angles from any ground location.
 
-🌐 **Live:** [https://jrky.github.io/sat/](https://jrky.github.io/sat/)
+Live site: https://jrky.github.io/sat/
 
----
+## Features
 
-## What it does
+- Set observer location from browser geolocation, map click, or location search.
+- Compute true azimuth, magnetic azimuth, elevation, zenith angle, and magnetic declination.
+- Show map lines from the observer to visible satellites.
+- Show a selected-satellite bearing ray for dish pointing.
+- Color satellites by elevation status:
+  - Good: 20 degrees or higher
+  - Low: 5 to 20 degrees
+  - Bad: below 5 degrees
+- Toggle optional GEO footprint overlays.
+- Filter visible satellites by minimum elevation.
+- Export visible satellite angles to CSV.
+- Manage a personal satellite catalog in the Satellites tab:
+  - enable or disable default satellites
+  - add custom satellites by name and longitude
+  - delete custom satellites
+  - reset back to defaults
 
-On load the app requests your GPS location automatically. You can also click anywhere on the map, use the search bar, or tap the location button. The app immediately computes pointing angles to every satellite and shows:
+The app has no build step, no framework, and no API keys.
 
-- **True and magnetic azimuth** for each satellite — magnetic corrected using the embedded WMM-2025 model
-- **Elevation** above the horizon, or zenith angle (switchable)
-- **Magnetic declination** for your location, shown in the satellite detail card
-- **Status** — Good (≥20°), Low (5–20°), Bad (<5°) — industry-standard thresholds
-- **Look-angle lines** on the map from your location to each satellite, colored by status (solid green/amber, dashed red for bad)
-- **Bearing ray** — a dashed directional arrow on the map showing which way to point your dish when a satellite is selected
-- **Satellite name labels** visible at all zoom levels
-- **Coverage footprints** (optional toggle, off by default) showing each satellite's visibility zone
-- **Compass rose** in the detail card with two needles — true north and magnetic north side by side
-- **CSV export** of all visible satellite angles including true az, magnetic az, elevation, zenith angle, and status
+## Running Locally
 
----
+Serve the folder with a local static server:
+
+```powershell
+cd C:\Users\jrky\OneDrive\Documents\Sat
+python -m http.server 8123 --bind 127.0.0.1
+```
+
+Then open:
+
+```text
+http://127.0.0.1:8123/
+```
+
+Opening `index.html` directly from `file://` is not recommended because browser security rules can interfere with `fetch()` and ES modules.
 
 ## Interface
 
-The app uses a **floating window** that sits over the map. On desktop it can be dragged anywhere on screen and its position is remembered across sessions. On mobile it anchors to the bottom of the screen as a fixed card. Click the **—** button in the title bar to minimize it to a slim bar — the selected satellite name and status remain visible even when minimized. Click the title bar or expand button to restore it.
+The app uses a floating window over the map.
 
-The window has two tabs:
+- On desktop, the window can be dragged and its position is remembered.
+- On mobile, the window docks to the bottom of the screen.
+- The title-bar button minimizes or expands the window.
+- Selecting a satellite from the map or table switches to the Pointing tab.
 
-- **Pointing** — your observer coordinates and the selected satellite's detail card (compass rose, true az, magnetic az, elevation/zenith, declination)
-- **Satellites** — the full satellite table with sortable columns, plus controls for min elevation filter, footprint toggle, zenith angle toggle, and CSV export
+Tabs:
 
-Clicking any satellite marker on the map or any row in the table automatically switches to the Pointing tab and expands the window if minimized.
+- Pointing: observer coordinates and selected satellite details.
+- Satellites: filters, toggles, CSV export, catalog controls, and sortable satellite table.
 
----
+## Default Satellites
 
-## Elevation status thresholds
-
-| Status | Elevation | Meaning |
-|--------|-----------|---------|
-| **Good** | ≥ 20° | Clean sky angle, reliable link |
-| **Low** | 5° – 20° | Marginal; increased path loss and rain-fade risk |
-| **Bad** | < 5° | Below practical minimum; terrain/atmosphere blockage likely |
-
----
-
-## Satellites
+Defaults live in `satellites.json`:
 
 | Name | Longitude |
-|------|-----------|
-| ALT-IO | 110.0° E |
-| ALT-LANT | 24.0° W |
-| ALT-PAC | 127.0° W |
-| MUOS-2 | 172.0° E |
-| MUOS-3 | 15.5° W |
-| MUOS-4 | 75.0° E |
-| MUOS-5 | 100.0° W |
+| --- | ---: |
+| ALT-IO | 110.0 E |
+| ALT-LANT | 24.0 W |
+| ALT-PAC | 170.0 E |
+| MUOS-2 | 172.0 E |
+| MUOS-3 | 15.5 W |
+| MUOS-4 | 75.0 E |
+| MUOS-5 | 100.0 W |
 
-To update the satellite list, edit [`satellites.json`](satellites.json). Each entry needs a `name` and a `lon` (decimal degrees, negative = West):
+Each entry requires a `name` and `lon` in decimal degrees. Negative longitude means west.
 
 ```json
 [
@@ -66,93 +78,99 @@ To update the satellite list, edit [`satellites.json`](satellites.json). Each en
 ]
 ```
 
----
-
-## Stack
-
-No build step. No framework. No API keys.
-
-| Concern | Library / Source |
-|---------|-----------------|
-| Map | [Leaflet 1.9](https://leafletjs.com/) |
-| Geocoding | [Nominatim](https://nominatim.org/) (OpenStreetMap) |
-| Tile layers | OSM · CartoDB Dark · OpenTopoMap · Esri Satellite |
-| Icons | [Material Symbols Rounded](https://fonts.google.com/icons) |
-| Fonts | Google Sans · Roboto Mono |
-| Magnetic model | WMM-2025 (NOAA), embedded — no API needed |
-
-All satellite math (az/el, magnetic declination, footprint geometry, look-angle lines, bearing ray) is plain JS with no runtime dependencies beyond Leaflet.
-
----
-
-## Project structure
-
-```
-sat/
-├── index.html
-├── satellites.json        # satellite list — edit to add/remove satellites
-├── manifest.json          # PWA manifest
-├── sw.js                  # service worker — offline app shell caching
-├── favicon.svg
-├── styles/
-│   └── main.css
-└── js/
-    ├── app.js             # bootstrap, geolocation, FAB wiring
-    ├── state.js           # single source of truth + localStorage persistence
-    ├── map.js             # Leaflet init, rendering panes, user marker
-    ├── markers.js         # satellite icons + name labels (nearest world copy)
-    ├── lines.js           # look-angle lines, status-colored, shortest-path aware
-    ├── bearing.js         # directional bearing ray for selected satellite
-    ├── footprints.js      # coverage footprint polygons
-    ├── geometry.js        # pure math: az/el/magAz, footprint boundary
-    ├── declination.js     # WMM-2025 magnetic declination (self-contained)
-    ├── events.js          # floating window, tabs, selection, controls, export
-    ├── table.js           # satellite table with sorting, mag az, unit toggle
-    └── autocomplete.js    # Nominatim location search with debounce
-```
-
----
+End users can also customize their own local catalog from the app UI without editing this file.
 
 ## Persistence
 
-The following preferences are saved to `localStorage` and restored on next load:
+The app stores these values in `localStorage`:
 
-| Key | What it stores |
-|-----|----------------|
-| `sat_elev_unit` | Elevation vs zenith angle toggle |
-| `sat_win_pos` | Floating window position (desktop) |
+| Key | Purpose |
+| --- | --- |
+| `sat_catalog_v1` | Local satellite catalog edits |
+| `sat_elev_unit` | Elevation vs zenith display mode |
+| `sat_win_pos` | Floating window position on desktop |
 | `sat_win_min` | Whether the window is minimized |
 
-Footprints default to off every session and are not persisted.
+Footprints default to off each session.
 
----
+## Offline Behavior
 
-## Offline / PWA
+The service worker caches the app shell, including HTML, CSS, JavaScript modules, icons, and `satellites.json`.
 
-The app registers a service worker on load and caches the full app shell (all JS, CSS, satellite list, icons). Once cached, it runs entirely offline — az/el computation, magnetic declination, bearing ray, footprints, and CSV export all work without a connection. Map tiles, geocoding search, and CDN-loaded fonts require network and degrade gracefully when unavailable.
+Works offline after the first cache:
 
-To force a cache refresh after an update, bump the `CACHE` version string in `sw.js`:
+- satellite math
+- magnetic declination
+- bearing ray
+- footprints
+- table filtering and sorting
+- CSV export
+- local catalog management
+
+Requires network:
+
+- map tiles
+- location search through Nominatim
+- CDN-loaded Leaflet, fonts, and icons on first load
+
+To invalidate the app shell cache after changing cached files, bump the version in `sw.js`:
 
 ```js
-const CACHE = "sat-v2"; // increment to invalidate old cache
+const CACHE = "sat-v5";
 ```
 
----
+## Project Structure
 
-## Hosting on GitHub Pages
+```text
+sat/
+|-- index.html
+|-- satellites.json
+|-- manifest.json
+|-- sw.js
+|-- favicon.svg
+|-- styles/
+|   `-- main.css
+`-- js/
+    |-- app.js             # bootstrap, catalog init, geolocation button
+    |-- autocomplete.js    # Nominatim search
+    |-- bearing.js         # selected-satellite bearing ray
+    |-- catalog.js         # local satellite catalog UI and persistence
+    |-- declination.js     # embedded WMM-2025 magnetic declination
+    |-- events.js          # app coordination, selection, rendering refresh
+    |-- export.js          # CSV generation and download
+    |-- footprints.js      # GEO footprint polygons
+    |-- geo-wrap.js        # longitude wrapping helpers
+    |-- geometry.js        # az/el and footprint math
+    |-- lines.js           # observer-to-satellite map lines
+    |-- map.js             # Leaflet setup, panes, user marker
+    |-- markers.js         # satellite markers and labels
+    |-- state.js           # shared app state and persisted preferences
+    |-- status.js          # elevation status thresholds and colors
+    |-- table.js           # sortable satellite table
+    `-- window-ui.js       # floating window drag/minimize behavior
+```
 
-The repo serves from the `main` branch root. To deploy:
+## Stack
 
-```bash
+| Concern | Library / Source |
+| --- | --- |
+| Map | Leaflet 1.9 |
+| Geocoding | Nominatim / OpenStreetMap |
+| Tile layers | OpenStreetMap, CartoDB Dark, OpenTopoMap, Esri Imagery |
+| Icons | Material Symbols Rounded |
+| Fonts | Google Sans, Roboto Mono |
+| Magnetic model | NOAA WMM-2025 coefficients embedded locally |
+
+## Deployment
+
+GitHub Pages serves the repository from the `main` branch root.
+
+```powershell
 git add .
-git commit -m "update"
+git commit -m "Update app"
 git push origin main
 ```
 
-GitHub Pages publishes automatically to [https://jrky.github.io/sat/](https://jrky.github.io/sat/).
-
----
-
 ## License
 
-MIT © 2026 Josh Kennedy
+MIT. See `LICENSE`.
