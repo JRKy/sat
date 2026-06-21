@@ -5,6 +5,7 @@
 // ======================================================
 
 import { map, SAT_PANE, LABEL_PANE } from "./map.js";
+import { nearestWrappedLon } from "./geo-wrap.js";
 import { LABEL_ZOOM_THRESHOLD } from "./state.js";
 
 // ── Icon helpers ───────────────────────────────────────
@@ -33,17 +34,6 @@ function updateLabelVisibility() {
 
 map.on("zoomend", updateLabelVisibility);
 
-// ── Nearest-copy longitude ─────────────────────────────
-// Place the marker at whichever world copy of centerLon is
-// closest to the observer (or map center if no observer).
-// Mirrors the same logic used in lines.js.
-function nearestLon(referenceLon, satLon) {
-  let delta = satLon - referenceLon;
-  while (delta >  180) delta -= 360;
-  while (delta < -180) delta += 360;
-  return referenceLon + delta;
-}
-
 /**
  * Creates a marker + label for the satellite at the world copy
  * nearest to the observer. Returns an array of { marker, label }.
@@ -54,7 +44,7 @@ function nearestLon(referenceLon, satLon) {
 export function createWrappedSatelliteMarkers(sat, obs) {
   // Use observer lon if available, otherwise map center lon
   const refLon = obs ? obs.lon : map.getCenter().lng;
-  const lon    = nearestLon(refLon, sat.centerLon);
+  const lon    = nearestWrappedLon(refLon, sat.centerLon);
 
   const marker = L.marker([0, lon], {
     icon: satelliteIcon,
