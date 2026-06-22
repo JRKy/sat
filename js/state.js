@@ -22,7 +22,6 @@ export function hasObserver()  { return _observer !== null; }
 // ── UI state ───────────────────────────────────────────
 let _selectedId      = null;
 let _showFootprints  = false;
-let _elevationCutoff = 0;
 let _elevUnit        = "horizon"; // "horizon" | "zenith"
 
 export function getSelectedId()       { return _selectedId; }
@@ -30,9 +29,6 @@ export function setSelectedId(id)     { _selectedId = id; }
 
 export function getShowFootprints()   { return _showFootprints; }
 export function setShowFootprints(v)  { _showFootprints = v; }
-
-export function getElevationCutoff()  { return _elevationCutoff; }
-export function setElevationCutoff(v) { _elevationCutoff = v; }
 
 export function getElevUnit()         { return _elevUnit; }
 export function setElevUnit(v)        { _elevUnit = v; }

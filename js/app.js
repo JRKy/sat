@@ -5,7 +5,7 @@
 
 import { map, setUserLocation } from "./map.js";
 import { initTable } from "./table.js";
-import { initEvents, highlightSatellite, replaceSatellites } from "./events.js?v=5";
+import { initEvents, highlightSatellite, replaceSatellites } from "./events.js?v=6";
 import { initAutocomplete } from "./autocomplete.js";
 import { initSatelliteCatalog } from "./catalog.js?v=5";
 

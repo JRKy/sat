@@ -15,7 +15,6 @@ Live site: https://jrky.github.io/sat/
   - Low: 5 to 20 degrees
   - Bad: below 5 degrees
 - Toggle optional GEO footprint overlays.
-- Filter visible satellites by minimum elevation.
 - Export visible satellite angles to CSV.
 - Manage a personal satellite catalog in the Satellites tab:
   - enable or disable default satellites
@@ -54,7 +53,7 @@ The app uses a floating window over the map.
 Tabs:
 
 - Pointing: observer coordinates and selected satellite details.
-- Satellites: filters, toggles, CSV export, catalog controls, and sortable satellite table.
+- Satellites: toggles, CSV export, catalog controls, and sortable satellite table.
 
 ## Default Satellites
 

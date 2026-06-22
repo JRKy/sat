@@ -23,7 +23,6 @@ import {
   getObserver, setObserver, hasObserver,
   getSelectedId, setSelectedId,
   getShowFootprints, setShowFootprints,
-  getElevationCutoff, setElevationCutoff,
   getElevUnit, setElevUnit,
   loadPersistedElevUnit, saveElevUnit,
   saveFootprint
@@ -31,8 +30,6 @@ import {
 
 const winTitleText    = document.getElementById("win-title-text");
 const winTitlePill    = document.getElementById("win-title-pill");
-const cutoffSlider    = document.getElementById("cutoff");
-const cutoffValue     = document.getElementById("cutoff-value");
 const footprintToggle = document.getElementById("footprint-toggle");
 const elevUnitToggle  = document.getElementById("elev-unit-toggle");
 const exportBtn       = document.getElementById("export-btn");
@@ -213,13 +210,6 @@ function recomputeAllAzEl() {
   }
 }
 
-function filteredSatellites() {
-  const cutoff = getElevationCutoff();
-  const obs    = getObserver();
-  if (!obs) return getSatellites();
-  return getSatellites().filter(s => s.el >= cutoff);
-}
-
 function clearAllMarkers() {
   for (const id in activeWrapped) removeSatelliteFromMap(activeWrapped[id]);
   activeWrapped = {};
@@ -227,7 +217,7 @@ function clearAllMarkers() {
 
 function renderSatellites() {
   clearAllMarkers();
-  const visible = filteredSatellites();
+  const visible = getSatellites();
 
   for (const sat of visible) {
     const wrapped = createWrappedSatelliteMarkers(sat, getObserver());
@@ -300,14 +290,7 @@ footprintToggle.addEventListener("change", () => {
   const v = footprintToggle.checked;
   setShowFootprints(v);
   saveFootprint(v);
-  updateFootprints(filteredSatellites(), v, getObserver());
-});
-
-cutoffSlider.addEventListener("input", () => {
-  const v = Number(cutoffSlider.value);
-  setElevationCutoff(v);
-  cutoffValue.textContent = v;
-  refreshSatellites();
+  updateFootprints(getSatellites(), v, getObserver());
 });
 
 elevUnitToggle.addEventListener("change", () => {
@@ -319,11 +302,11 @@ elevUnitToggle.addEventListener("change", () => {
     const sat = getSatellites().find(s => s.id === selId);
     if (sat) renderSelectedInfo(sat);
   }
-  updateTable(filteredSatellites());
+  updateTable(getSatellites());
 });
 
 exportBtn.addEventListener("click", () => {
-  exportSatelliteAngles(getObserver(), filteredSatellites());
+  exportSatelliteAngles(getObserver(), getSatellites());
 });
 
 const persistedUnit = loadPersistedElevUnit();

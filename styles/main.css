@@ -343,22 +343,10 @@ html, body {
   color: var(--text);
 }
 
-.control-row input[type="range"] {
-  flex: 1;
-  accent-color: var(--accent);
-}
-
 .control-label {
   color: var(--text-muted);
   font-size: 13px;
   white-space: nowrap;
-}
-
-.control-value {
-  font-weight: 600;
-  font-size: 14px;
-  min-width: 32px;
-  text-align: right;
 }
 
 /* =========================================
