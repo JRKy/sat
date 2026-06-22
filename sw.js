@@ -5,7 +5,7 @@
 // all other app functionality works offline.
 // ======================================================
 
-const CACHE    = "sat-v7";
+const CACHE    = "sat-v8";
 const PRECACHE = [
   "/sat/",
   "/sat/index.html",

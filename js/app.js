@@ -7,7 +7,7 @@ import { map, setUserLocation } from "./map.js";
 import { initTable } from "./table.js";
 import { initEvents, highlightSatellite, replaceSatellites, setFootprintSelection } from "./events.js?v=7";
 import { initAutocomplete } from "./autocomplete.js";
-import { initSatelliteCatalog } from "./catalog.js?v=7";
+import { initSatelliteCatalog } from "./catalog.js?v=8";
 
 // 1. Initialize table container
 initTable("sat-table", { onSelect: highlightSatellite });

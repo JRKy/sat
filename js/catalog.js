@@ -88,13 +88,14 @@ function setFootprintEnabled(id, enabled) {
 }
 
 function emitChange() {
+  const listScrollTop = root?.querySelector(".catalog-list")?.scrollTop ?? 0;
   saveCatalog();
-  renderCatalog();
+  renderCatalog(listScrollTop);
   if (onChange) onChange(getEnabledSatellites());
   if (onFootprintChange) onFootprintChange(getSelectedFootprintIds());
 }
 
-function renderCatalog() {
+function renderCatalog(listScrollTop = 0) {
   if (!root) return;
   const records = allRecords();
   const enabledCount = records.filter(r => r.enabled).length;
@@ -134,6 +135,9 @@ function renderCatalog() {
             </button>` : `<span class="catalog-fixed"></span>`}
         </div>`).join("")}
     </div>`;
+
+  const list = root.querySelector(".catalog-list");
+  if (list) list.scrollTop = listScrollTop;
 
   root.querySelector("#catalog-reset").addEventListener("click", () => {
     catalog = { disabledDefaults: [], custom: [], footprintIds: [] };

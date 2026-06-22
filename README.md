@@ -114,7 +114,7 @@ Requires network:
 To invalidate the app shell cache after changing cached files, bump the version in `sw.js`:
 
 ```js
-const CACHE = "sat-v7";
+const CACHE = "sat-v8";
 ```
 
 ## Project Structure
