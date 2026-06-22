@@ -22,21 +22,19 @@ import {
   getSatellites, setSatellites,
   getObserver, setObserver, hasObserver,
   getSelectedId, setSelectedId,
-  getShowFootprints, setShowFootprints,
   getElevUnit, setElevUnit,
-  loadPersistedElevUnit, saveElevUnit,
-  saveFootprint
+  loadPersistedElevUnit, saveElevUnit
 } from "./state.js";
 
 const winTitleText    = document.getElementById("win-title-text");
 const winTitlePill    = document.getElementById("win-title-pill");
-const footprintToggle = document.getElementById("footprint-toggle");
 const elevUnitToggle  = document.getElementById("elev-unit-toggle");
 const exportBtn       = document.getElementById("export-btn");
 const observerInfo    = document.getElementById("observer-info");
 const selectedInfo    = document.getElementById("selected-info");
 
 let activeWrapped = {};
+let selectedFootprintIds = new Set();
 
 const tabBtns  = document.querySelectorAll(".tab-btn");
 const tabPanes = document.querySelectorAll(".tab-pane");
@@ -215,9 +213,14 @@ function clearAllMarkers() {
   activeWrapped = {};
 }
 
+function footprintSatellites() {
+  return getSatellites().filter(sat => selectedFootprintIds.has(sat.id));
+}
+
 function renderSatellites() {
   clearAllMarkers();
   const visible = getSatellites();
+  const footprints = footprintSatellites();
 
   for (const sat of visible) {
     const wrapped = createWrappedSatelliteMarkers(sat, getObserver());
@@ -233,7 +236,7 @@ function renderSatellites() {
   }
 
   updateTable(visible);
-  updateFootprints(visible, getShowFootprints(), getObserver());
+  updateFootprints(footprints, footprints.length > 0, getObserver());
   updateLines(visible, getObserver());
 }
 
@@ -286,13 +289,6 @@ onLocationChange((lat, lon) => {
   }
 });
 
-footprintToggle.addEventListener("change", () => {
-  const v = footprintToggle.checked;
-  setShowFootprints(v);
-  saveFootprint(v);
-  updateFootprints(getSatellites(), v, getObserver());
-});
-
 elevUnitToggle.addEventListener("change", () => {
   const v = elevUnitToggle.checked ? "zenith" : "horizon";
   setElevUnit(v);
@@ -315,9 +311,11 @@ if (persistedUnit === "zenith") {
   if (elevUnitToggle) elevUnitToggle.checked = true;
 }
 
-saveFootprint(false);
-footprintToggle.checked = false;
-setShowFootprints(false);
+export function setFootprintSelection(ids) {
+  selectedFootprintIds = new Set(ids);
+  const footprints = footprintSatellites();
+  updateFootprints(footprints, footprints.length > 0, getObserver());
+}
 
 export function initEvents(satList) {
   setSatellites(satList);

@@ -7,8 +7,9 @@ const CATALOG_KEY = "sat_catalog_v1";
 const GEO_ALT_KM = 35786;
 
 let defaultRecords = [];
-let catalog = { disabledDefaults: [], custom: [] };
+let catalog = { disabledDefaults: [], custom: [], footprintIds: [] };
 let onChange = null;
+let onFootprintChange = null;
 let root = null;
 
 function defaultId(s, i) {
@@ -29,9 +30,10 @@ function loadCatalog() {
     return {
       disabledDefaults: Array.isArray(parsed.disabledDefaults) ? parsed.disabledDefaults : [],
       custom: Array.isArray(parsed.custom) ? parsed.custom : [],
+      footprintIds: Array.isArray(parsed.footprintIds) ? parsed.footprintIds : [],
     };
   } catch {
-    return { disabledDefaults: [], custom: [] };
+    return { disabledDefaults: [], custom: [], footprintIds: [] };
   }
 }
 
@@ -73,16 +75,30 @@ export function getEnabledSatellites() {
     .map(normalize);
 }
 
+function getSelectedFootprintIds() {
+  const enabledIds = new Set(allRecords().filter(r => r.enabled).map(r => r.id));
+  return catalog.footprintIds.filter(id => enabledIds.has(id));
+}
+
+function setFootprintEnabled(id, enabled) {
+  const ids = new Set(catalog.footprintIds);
+  if (enabled) ids.add(id);
+  else ids.delete(id);
+  catalog.footprintIds = [...ids];
+}
+
 function emitChange() {
   saveCatalog();
   renderCatalog();
   if (onChange) onChange(getEnabledSatellites());
+  if (onFootprintChange) onFootprintChange(getSelectedFootprintIds());
 }
 
 function renderCatalog() {
   if (!root) return;
   const records = allRecords();
   const enabledCount = records.filter(r => r.enabled).length;
+  const footprintIds = new Set(catalog.footprintIds);
   root.innerHTML = `
     <div class="catalog-header">
       <div class="catalog-title">
@@ -109,15 +125,18 @@ function renderCatalog() {
             <span class="catalog-name">${r.name}</span>
           </label>
           <span class="catalog-lon">${r.lon.toFixed(1)}°</span>
+          <button class="icon-btn compact catalog-footprint ${footprintIds.has(r.id) ? "active" : ""}" title="${footprintIds.has(r.id) ? "Hide footprint" : "Show footprint"}" type="button" ${r.enabled ? "" : "disabled"}>
+            <span class="material-symbols-rounded">radio_button_checked</span>
+          </button>
           ${r.custom ? `
-            <button class="icon-btn compact catalog-delete" title="Delete satellite">
+            <button class="icon-btn compact catalog-delete" title="Delete satellite" type="button">
               <span class="material-symbols-rounded">delete</span>
             </button>` : `<span class="catalog-fixed"></span>`}
         </div>`).join("")}
     </div>`;
 
   root.querySelector("#catalog-reset").addEventListener("click", () => {
-    catalog = { disabledDefaults: [], custom: [] };
+    catalog = { disabledDefaults: [], custom: [], footprintIds: [] };
     emitChange();
   });
 
@@ -149,19 +168,29 @@ function renderCatalog() {
         const custom = catalog.custom.find(r => r.id === id);
         if (custom) custom.enabled = e.target.checked;
       }
+      if (!e.target.checked) setFootprintEnabled(id, false);
+      emitChange();
+    });
+
+    item.querySelector(".catalog-footprint")?.addEventListener("click", () => {
+      const record = allRecords().find(r => r.id === id);
+      if (!record?.enabled) return;
+      setFootprintEnabled(id, !catalog.footprintIds.includes(id));
       emitChange();
     });
 
     item.querySelector(".catalog-delete")?.addEventListener("click", () => {
       catalog.custom = catalog.custom.filter(r => r.id !== id);
+      setFootprintEnabled(id, false);
       emitChange();
     });
   });
 }
 
-export function initSatelliteCatalog(containerId, rawDefaults, callback) {
+export function initSatelliteCatalog(containerId, rawDefaults, callback, footprintCallback) {
   root = document.getElementById(containerId);
   onChange = callback;
+  onFootprintChange = footprintCallback;
   defaultRecords = rawDefaults.map((s, i) => ({
     id: defaultId(s, i),
     name: cleanName(s.name),
@@ -169,5 +198,8 @@ export function initSatelliteCatalog(containerId, rawDefaults, callback) {
   }));
   catalog = loadCatalog();
   renderCatalog();
-  return getEnabledSatellites();
+  return {
+    satellites: getEnabledSatellites(),
+    footprintIds: getSelectedFootprintIds()
+  };
 }

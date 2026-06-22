@@ -276,6 +276,16 @@ html, body {
 
 .icon-btn:hover { background: var(--bg-hover); color: var(--text); }
 
+.icon-btn:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.icon-btn:disabled:hover {
+  background: none;
+  color: var(--text-muted);
+}
+
 .icon-btn.compact {
   width: 30px;
   height: 30px;
@@ -423,7 +433,7 @@ html, body {
 }
 
 .catalog-item {
-  grid-template-columns: minmax(0, 1fr) 58px 30px;
+  grid-template-columns: minmax(0, 1fr) 58px 30px 30px;
   min-height: 30px;
 }
 
@@ -450,6 +460,11 @@ html, body {
   font-family: var(--font-mono);
   font-size: 11px;
   text-align: right;
+}
+
+.catalog-footprint.active {
+  color: var(--accent);
+  background: var(--accent-subtle);
 }
 
 .catalog-fixed {

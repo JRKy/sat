@@ -14,11 +14,12 @@ Live site: https://jrky.github.io/sat/
   - Good: 20 degrees or higher
   - Low: 5 to 20 degrees
   - Bad: below 5 degrees
-- Toggle optional GEO footprint overlays.
+- Show optional GEO footprint overlays for selected satellites.
 - Export visible satellite angles to CSV.
 - Manage a personal satellite catalog in the Satellites tab:
   - enable or disable default satellites
   - add custom satellites by name and longitude
+  - show or hide footprint overlays per satellite
   - delete custom satellites
   - reset back to defaults
 
@@ -53,7 +54,7 @@ The app uses a floating window over the map.
 Tabs:
 
 - Pointing: observer coordinates and selected satellite details.
-- Satellites: toggles, CSV export, catalog controls, and sortable satellite table.
+- Satellites: display preferences, CSV export, catalog controls, footprint controls, and sortable satellite table.
 
 ## Default Satellites
 
@@ -85,12 +86,10 @@ The app stores these values in `localStorage`:
 
 | Key | Purpose |
 | --- | --- |
-| `sat_catalog_v1` | Local satellite catalog edits |
+| `sat_catalog_v1` | Local satellite catalog edits and footprint selections |
 | `sat_elev_unit` | Elevation vs zenith display mode |
 | `sat_win_pos` | Floating window position on desktop |
 | `sat_win_min` | Whether the window is minimized |
-
-Footprints default to off each session.
 
 ## Offline Behavior
 
@@ -115,7 +114,7 @@ Requires network:
 To invalidate the app shell cache after changing cached files, bump the version in `sw.js`:
 
 ```js
-const CACHE = "sat-v5";
+const CACHE = "sat-v7";
 ```
 
 ## Project Structure

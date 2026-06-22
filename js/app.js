@@ -5,9 +5,9 @@
 
 import { map, setUserLocation } from "./map.js";
 import { initTable } from "./table.js";
-import { initEvents, highlightSatellite, replaceSatellites } from "./events.js?v=6";
+import { initEvents, highlightSatellite, replaceSatellites, setFootprintSelection } from "./events.js?v=7";
 import { initAutocomplete } from "./autocomplete.js";
-import { initSatelliteCatalog } from "./catalog.js?v=5";
+import { initSatelliteCatalog } from "./catalog.js?v=7";
 
 // 1. Initialize table container
 initTable("sat-table", { onSelect: highlightSatellite });
@@ -16,8 +16,9 @@ initTable("sat-table", { onSelect: highlightSatellite });
 fetch("satellites.json")
   .then(res => res.json())
   .then(satList => {
-    const enabled = initSatelliteCatalog("catalog-manager", satList, replaceSatellites);
-    initEvents(enabled);
+    const initial = initSatelliteCatalog("catalog-manager", satList, replaceSatellites, setFootprintSelection);
+    initEvents(initial.satellites);
+    setFootprintSelection(initial.footprintIds);
   })
   .catch(err => console.error("Failed to load satellites.json:", err));
 
